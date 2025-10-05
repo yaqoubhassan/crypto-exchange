@@ -13,7 +13,15 @@ return new class extends Migration
     {
         Schema::create('wallets', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('cryptocurrency_id')->constrained()->onDelete('cascade');
+            $table->decimal('balance', 20, 8)->default(0); // Available balance
+            $table->decimal('locked_balance', 20, 8)->default(0); // Locked in orders
+            $table->string('address')->nullable(); // Wallet address for deposits
+            $table->string('private_key')->nullable(); // Encrypted private key
             $table->timestamps();
+            
+            $table->unique(['user_id', 'cryptocurrency_id']); // One wallet per user per currency
         });
     }
 
