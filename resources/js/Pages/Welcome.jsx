@@ -299,5 +299,141 @@ export default function Welcome({ auth }) {
                                 {cryptos.map((crypto, index) => (
                                     <div key={crypto.symbol} className="text-center p-4 hover:bg-gray-50 rounded-lg transition-colors">
                                         <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg mx-auto mb-3">
-               
-(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)
+                                            {crypto.symbol.substring(0, 2)}
+                                        </div>
+                                        <div className="font-semibold text-gray-900">{crypto.name}</div>
+                                        <div className="text-sm text-gray-500 mb-2">{crypto.symbol}</div>
+                                        <div className="text-xl font-bold text-gray-900">
+                                            ${crypto.price.toLocaleString()}
+                                        </div>
+                                        <div className={`text-sm font-medium ${
+                                            crypto.change >= 0 ? 'text-green-600' : 'text-red-600'
+                                        }`}>
+                                            {crypto.change >= 0 ? '+' : ''}{crypto.change}%
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* About Section */}
+            <section id="about" className="py-20 bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                        <div className="space-y-6">
+                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                About CryptoExchange
+                            </h2>
+                            <p className="text-lg text-gray-600 leading-relaxed">
+                                Founded in 2020, CryptoExchange has become one of the world's most trusted cryptocurrency trading platforms. We're committed to making digital assets accessible to everyone, from beginners to professional traders.
+                            </p>
+                            <p className="text-lg text-gray-600 leading-relaxed">
+                                Our mission is to accelerate the world's transition to cryptocurrency through secure, reliable, and user-friendly trading services. With over 50,000 active users and $2.5B+ in trading volume, we're proud to be at the forefront of the crypto revolution.
+                            </p>
+                            <div className="flex flex-wrap gap-4">
+                                <div className="bg-indigo-50 px-4 py-2 rounded-lg">
+                                    <div className="text-2xl font-bold text-indigo-600">24/7</div>
+                                    <div className="text-sm text-gray-600">Customer Support</div>
+                                </div>
+                                <div className="bg-indigo-50 px-4 py-2 rounded-lg">
+                                    <div className="text-2xl font-bold text-indigo-600">100+</div>
+                                    <div className="text-sm text-gray-600">Cryptocurrencies</div>
+                                </div>
+                                <div className="bg-indigo-50 px-4 py-2 rounded-lg">
+                                    <div className="text-2xl font-bold text-indigo-600">0.1%</div>
+                                    <div className="text-sm text-gray-600">Trading Fees</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl p-8 h-96 flex items-center justify-center">
+                            <div className="text-center">
+                                <div className="text-6xl mb-4">🚀</div>
+                                <div className="text-2xl font-bold text-gray-900 mb-2">
+                                    Join the Future of Finance
+                                </div>
+                                <div className="text-gray-600">
+                                    Trade with confidence on our secure platform
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA Section */}
+            <section className="py-20 bg-gradient-to-r from-indigo-600 to-purple-600">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                        Ready to Start Trading?
+                    </h2>
+                    <p className="text-xl text-indigo-100 mb-8">
+                        Join thousands of traders who trust CryptoExchange for their crypto trading needs.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <Link
+                            href={route('register')}
+                            className="bg-white text-indigo-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors"
+                        >
+                            Create Free Account
+                        </Link>
+                        <button className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-indigo-600 transition-colors">
+                            View Markets
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* Footer */}
+            <footer className="bg-gray-900 text-gray-300 py-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                        <div>
+                            <div className="flex items-center space-x-2 mb-4">
+                                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <span className="text-white font-bold text-sm">CE</span>
+                                </div>
+                                <span className="text-xl font-bold text-white">CryptoExchange</span>
+                            </div>
+                            <p className="text-sm text-gray-400">
+                                The most trusted cryptocurrency exchange platform.
+                            </p>
+                        </div>
+                        <div>
+                            <h4 className="text-white font-semibold mb-4">Products</h4>
+                            <ul className="space-y-2 text-sm">
+                                <li><a href="#" className="hover:text-white transition-colors">Spot Trading</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Margin Trading</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Staking</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">NFT Marketplace</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="text-white font-semibold mb-4">Support</h4>
+                            <ul className="space-y-2 text-sm">
+                                <li><a href="#" className="hover:text-white transition-colors">Help Center</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">API Documentation</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Fees</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="text-white font-semibold mb-4">Company</h4>
+                            <ul className="space-y-2 text-sm">
+                                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
+                                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
+                        <p>&copy; 2025 CryptoExchange. All rights reserved.</p>
+                    </div>
+                </div>
+            </footer>
+        </>
+    );
+}
