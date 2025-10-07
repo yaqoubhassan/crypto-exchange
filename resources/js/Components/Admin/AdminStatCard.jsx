@@ -17,20 +17,21 @@ export default function AdminStatCard({
         red: 'border-red-500 text-red-600 bg-red-50',
         purple: 'border-purple-500 text-purple-600 bg-purple-50',
         orange: 'border-orange-500 text-orange-600 bg-orange-50',
+        cyan: 'border-cyan-500 text-cyan-600 bg-cyan-50',
         gray: 'border-gray-500 text-gray-600 bg-gray-50'
     };
 
     if (loading) {
         return (
             <div className="bg-white overflow-hidden shadow-sm rounded-xl border-l-4 border-gray-300 animate-pulse">
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-lg"></div>
                         </div>
-                        <div className="ml-5 w-0 flex-1">
-                            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                        <div className="ml-4 sm:ml-5 w-0 flex-1">
+                            <div className="h-3 sm:h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                            <div className="h-5 sm:h-6 bg-gray-200 rounded w-3/4"></div>
                         </div>
                     </div>
                 </div>
@@ -38,25 +39,29 @@ export default function AdminStatCard({
         );
     }
 
+    const borderColor = colorClasses[color].split(' ')[0];
+    const textColor = colorClasses[color].split(' ')[1];
+    const bgColor = colorClasses[color].split(' ')[2];
+
     return (
-        <div className={`bg-white overflow-hidden shadow-sm rounded-xl border-l-4 ${colorClasses[color].split(' ')[0]} hover:shadow-md transition-all duration-200`}>
-            <div className="p-6">
+        <div className={`bg-white overflow-hidden shadow-sm rounded-xl border-l-4 ${borderColor} hover:shadow-md transition-all duration-200`}>
+            <div className="p-4 sm:p-6">
                 <div className="flex items-center">
                     <div className="flex-shrink-0">
-                        <div className={`w-12 h-12 ${colorClasses[color].split(' ')[2]} rounded-lg flex items-center justify-center`}>
-                            <span className={`text-2xl ${colorClasses[color].split(' ')[1]}`}>{icon}</span>
+                        <div className={`w-10 h-10 sm:w-12 sm:h-12 ${bgColor} rounded-lg flex items-center justify-center`}>
+                            <span className={`text-xl sm:text-2xl ${textColor}`}>{icon}</span>
                         </div>
                     </div>
-                    <div className="ml-5 w-0 flex-1">
+                    <div className="ml-4 sm:ml-5 w-0 flex-1">
                         <dl>
-                            <dt className="text-sm font-medium text-gray-500 truncate mb-1">
+                            <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate mb-1">
                                 {title}
                             </dt>
-                            <dd className="text-2xl font-bold text-gray-900">
+                            <dd className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                                 {typeof value === 'number' ? value.toLocaleString() : value}
                             </dd>
                             {subtitle && (
-                                <dd className="text-xs text-gray-600 mt-1">{subtitle}</dd>
+                                <dd className="text-xs text-gray-600 mt-1 truncate">{subtitle}</dd>
                             )}
                             {trend && (
                                 <dd className={`text-xs font-medium mt-2 flex items-center ${
@@ -65,7 +70,7 @@ export default function AdminStatCard({
                                     <span className="mr-1">
                                         {trend.direction === 'up' ? '↗' : '↘'}
                                     </span>
-                                    {trend.value}% from last period
+                                    <span className="truncate">{trend.value}% from last period</span>
                                 </dd>
                             )}
                         </dl>

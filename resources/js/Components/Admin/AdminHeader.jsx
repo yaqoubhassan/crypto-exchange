@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import Dropdown from '@/Components/Dropdown';
 
-export default function AdminHeader({ user, stats, selectedTimeframe, onTimeframeChange }) {
+export default function AdminHeader({ user, stats, selectedTimeframe, onTimeframeChange, toggleSidebar, isCollapsed, toggleCollapse }) {
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications] = useState([
         { id: 1, type: 'warning', message: 'High number of pending transactions', time: '5 min ago' },
@@ -16,30 +16,56 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
 
     return (
         <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
-            <div className="px-6 py-4">
+            <div className="px-4 sm:px-6 py-3 sm:py-4">
                 {/* Top Row */}
-                <div className="flex items-center justify-between mb-6">
-                    {/* Left: Logo & Title */}
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <span className="text-white font-bold text-xl">CE</span>
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                    {/* Left: Hamburger + Logo & Title */}
+                    <div className="flex items-center space-x-3 sm:space-x-4">
+                        {/* Hamburger Menu - Mobile Only */}
+                        <button
+                            onClick={toggleSidebar}
+                            className="lg:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            aria-label="Toggle mobile menu"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+
+                        {/* Collapse Toggle - Desktop Only */}
+                        <button
+                            onClick={toggleCollapse}
+                            className="hidden lg:block p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            aria-label="Toggle sidebar"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {isCollapsed ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                )}
+                            </svg>
+                        </button>
+
+                        <div className="flex items-center space-x-2 sm:space-x-3">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <span className="text-white font-bold text-lg sm:text-xl">CE</span>
                             </div>
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                                <p className="text-sm text-gray-500">CryptoExchange Management</p>
+                            <div className="hidden sm:block">
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                                <p className="text-xs sm:text-sm text-gray-500">CryptoExchange Management</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Right: Actions & User */}
-                    <div className="flex items-center space-x-4">
-                        {/* Timeframe Selector */}
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                        {/* Timeframe Selector - Hidden on mobile */}
                         <div className="hidden md:block">
-                            <select 
+                            <select
                                 value={selectedTimeframe}
                                 onChange={(e) => onTimeframeChange(e.target.value)}
-                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                                className="w-40 sm:w-44 px-3 sm:px-4 py-2 pr-10 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
                             >
                                 <option value="1h">Last Hour</option>
                                 <option value="24h">Last 24 Hours</option>
@@ -55,7 +81,7 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                 </svg>
                                 {notifications.length > 0 && (
@@ -66,27 +92,26 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                             {/* Notifications Dropdown */}
                             {showNotifications && (
                                 <>
-                                    <div 
-                                        className="fixed inset-0 z-10" 
+                                    <div
+                                        className="fixed inset-0 z-10"
                                         onClick={() => setShowNotifications(false)}
                                     ></div>
-                                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-w-[calc(100vw-2rem)]">
                                         <div className="p-4 border-b border-gray-200">
                                             <h3 className="font-semibold text-gray-900">Notifications</h3>
                                         </div>
                                         <div className="max-h-96 overflow-y-auto">
                                             {notifications.map((notif) => (
-                                                <div 
+                                                <div
                                                     key={notif.id}
                                                     className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
                                                 >
                                                     <div className="flex items-start space-x-3">
-                                                        <div className={`w-2 h-2 mt-2 rounded-full ${
-                                                            notif.type === 'warning' ? 'bg-yellow-500' :
-                                                            notif.type === 'success' ? 'bg-green-500' :
-                                                            'bg-blue-500'
-                                                        }`}></div>
-                                                        <div className="flex-1">
+                                                        <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${notif.type === 'warning' ? 'bg-yellow-500' :
+                                                                notif.type === 'success' ? 'bg-green-500' :
+                                                                    'bg-blue-500'
+                                                            }`}></div>
+                                                        <div className="flex-1 min-w-0">
                                                             <p className="text-sm text-gray-900">{notif.message}</p>
                                                             <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
                                                         </div>
@@ -104,27 +129,27 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                             )}
                         </div>
 
-                        {/* Quick Actions */}
-                        <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {/* Quick Actions - Hidden on small mobile */}
+                        <button className="hidden sm:block p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </button>
 
                         {/* User Menu */}
-                        <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
+                        <div className="flex items-center">
                             <Dropdown>
                                 <Dropdown.Trigger>
-                                    <button className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                    <button className="flex items-center space-x-2 sm:space-x-3 hover:bg-gray-50 rounded-lg px-2 sm:px-3 py-2 transition-colors">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
                                             {user.name.charAt(0).toUpperCase()}
                                         </div>
                                         <div className="text-left hidden lg:block">
                                             <div className="text-sm font-semibold text-gray-900">{user.name}</div>
                                             <div className="text-xs text-gray-500">Administrator</div>
                                         </div>
-                                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                         </svg>
                                     </button>
@@ -132,10 +157,10 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
 
                                 <Dropdown.Content align="right" width="48">
                                     <div className="px-4 py-3 border-b border-gray-100">
-                                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                                        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
                                         <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                     </div>
-                                    
+
                                     <Dropdown.Link href={route('dashboard')}>
                                         <div className="flex items-center space-x-2">
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,6 +194,21 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                             </Dropdown>
                         </div>
                     </div>
+                </div>
+
+                {/* Mobile Timeframe Selector */}
+                <div className="md:hidden">
+                    <select
+                        value={selectedTimeframe}
+                        onChange={(e) => onTimeframeChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                    >
+                        <option value="1h">Last Hour</option>
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                    </select>
                 </div>
             </div>
         </header>
