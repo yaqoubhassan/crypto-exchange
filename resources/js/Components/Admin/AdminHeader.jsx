@@ -108,8 +108,8 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                                 >
                                                     <div className="flex items-start space-x-3">
                                                         <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${notif.type === 'warning' ? 'bg-yellow-500' :
-                                                                notif.type === 'success' ? 'bg-green-500' :
-                                                                    'bg-blue-500'
+                                                            notif.type === 'success' ? 'bg-green-500' :
+                                                                'bg-blue-500'
                                                             }`}></div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm text-gray-900">{notif.message}</p>

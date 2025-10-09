@@ -1,23 +1,30 @@
-import React, { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Link, router, usePage } from '@inertiajs/react';
 
 export default function DashboardHeader({ user }) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const { notifications = [], unreadCount = 0 } = usePage().props;
 
   const handleLogout = () => {
     router.post(route('logout'));
   };
 
-  // Mock notifications - you can replace this with real data
-  const notifications = [
-    { id: 1, text: 'Your withdrawal has been processed', time: '5 min ago', unread: true },
-    { id: 2, text: 'New security feature available', time: '1 hour ago', unread: true },
-    { id: 3, text: 'Your order was filled', time: '2 hours ago', unread: false },
-  ];
+  const markAsRead = (notificationId) => {
+    router.post(`/notifications/${notificationId}/read`, {}, {
+      preserveScroll: true,
+      preserveState: true,
+    });
+  };
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const markAllAsRead = () => {
+    router.post('/notifications/mark-all-read', {}, {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => setShowNotifications(false),
+    });
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">

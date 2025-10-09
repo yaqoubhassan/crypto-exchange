@@ -38,6 +38,14 @@ Route::middleware('auth')->group(function () {
     // Transaction routes
     Route::get('/transactions', [App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders.index');
+
+    //Notifications routes
+    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])
+    ->name('notifications.index');
+    Route::post('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])
+        ->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])
+        ->name('notifications.mark-all-read');
     
     // Security routes
     Route::get('/security', function () {

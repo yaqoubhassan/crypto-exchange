@@ -71,6 +71,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(UserKyc::class);
     }
 
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function unreadNotifications()
+    {
+        return $this->hasMany(Notification::class)->where('is_read', false);
+    }
+
     public function getWalletBalance($cryptocurrencyId)
     {
         $wallet = $this->wallets()->where('cryptocurrency_id', $cryptocurrencyId)->first();

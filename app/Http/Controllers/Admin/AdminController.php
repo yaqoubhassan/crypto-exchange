@@ -143,19 +143,30 @@ class AdminController extends Controller
         $query = \App\Models\Transaction::with(['user', 'cryptocurrency']);
 
         // Apply filters
-        if ($request->has('type') && $request->type !== 'all') {
-            $query->where('type', $request->type);
+        if ($request->status && $request->status !== 'all') {
+            $query->where('status', $request->status);
         }
 
-        if ($request->has('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
+        if ($request->type && $request->type !== 'all') {
+            $query->where('type', $request->type);
         }
 
         $transactions = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        return Inertia::render('Admin/Transactions', [
+        $stats = [
+            'total' => \App\Models\Transaction::count(),
+            'pending' => \App\Models\Transaction::where('status', 'pending')->count(),
+            'completed' => \App\Models\Transaction::where('status', 'completed')->count(),
+            'failed' => \App\Models\Transaction::whereIn('status', ['failed', 'cancelled'])->count(),
+        ];
+
+        return Inertia::render('Admin/Transactions/Index', [
             'transactions' => $transactions,
-            'filters' => $request->only(['type', 'status']),
+            'stats' => $stats,
+            'filters' => [
+                'status' => $request->status ?? 'all',
+                'type' => $request->type ?? 'all',
+            ],
         ]);
     }
 
@@ -202,61 +213,79 @@ class AdminController extends Controller
         $transaction = \App\Models\Transaction::findOrFail($id);
         
         if ($transaction->status !== 'pending') {
-            return response()->json(['error' => 'Transaction is not pending'], 400);
+            return back()->withErrors(['error' => 'Only pending transactions can be approved']);
         }
 
-        DB::beginTransaction();
-        try {
-            $transaction->status = 'completed';
-            $transaction->processed_at = now();
-            $transaction->save();
+        $transaction->status = 'completed';
+        $transaction->processed_at = now();
+        $transaction->save();
 
-            // Update wallet balances based on transaction type
-            $user = $transaction->user;
-            $wallet = $user->wallets()->where('cryptocurrency_id', $transaction->cryptocurrency_id)->first();
+        // Update wallet balances based on transaction type
+        $user = $transaction->user;
+        $wallet = $user->wallets()->where('cryptocurrency_id', $transaction->cryptocurrency_id)->first();
 
-            if (!$wallet) {
-                $wallet = $user->createWalletIfNotExists($transaction->cryptocurrency_id);
-            }
-
+        if ($wallet) {
             if ($transaction->type === 'deposit') {
                 $wallet->addBalance($transaction->amount);
             } elseif ($transaction->type === 'withdrawal') {
-                $wallet->deductBalance($transaction->amount);
+                // Already deducted when withdrawal was requested
+                // No additional action needed
             }
-
-            DB::commit();
-            return response()->json([
-                'message' => 'Transaction approved successfully',
-                'transaction' => $transaction
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['error' => 'Failed to approve transaction'], 500);
         }
+
+        // Create notification for user
+        \App\Models\Notification::createForUser(
+            $user->id,
+            'transaction',
+            'Transaction Approved',
+            "Your {$transaction->type} of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been approved and processed.",
+            '/transactions',
+            ['transaction_id' => $transaction->id],
+            '✅'
+        );
+
+        return back()->with('success', 'Transaction approved successfully');
     }
 
     public function rejectTransaction(Request $request, $id)
     {
         $request->validate([
-            'reason' => 'nullable|string|max:500',
+            'reason' => 'required|string|max:500',
         ]);
 
         $transaction = \App\Models\Transaction::findOrFail($id);
         
         if ($transaction->status !== 'pending') {
-            return response()->json(['error' => 'Transaction is not pending'], 400);
+            return back()->withErrors(['error' => 'Only pending transactions can be rejected']);
         }
 
         $transaction->status = 'failed';
-        $transaction->notes = $request->reason ?? 'Rejected by administrator';
+        $transaction->notes = $request->reason;
         $transaction->processed_at = now();
         $transaction->save();
 
-        return response()->json([
-            'message' => 'Transaction rejected successfully',
-            'transaction' => $transaction
-        ]);
+        // Refund wallet if it was a withdrawal (funds were locked)
+        $user = $transaction->user;
+        $wallet = $user->wallets()->where('cryptocurrency_id', $transaction->cryptocurrency_id)->first();
+
+        if ($wallet && $transaction->type === 'withdrawal') {
+            // Refund the amount (it was deducted when withdrawal was requested)
+            $totalAmount = $transaction->amount + $transaction->fee;
+            $wallet->addBalance($totalAmount);
+        }
+
+        // Create notification for user
+        \App\Models\Notification::createForUser(
+            $user->id,
+            'transaction',
+            'Transaction Rejected',
+            "Your {$transaction->type} has been rejected. Reason: {$request->reason}",
+            '/transactions',
+            ['transaction_id' => $transaction->id],
+            '❌'
+        );
+
+        return back()->with('success', 'Transaction rejected successfully');
     }
 
     public function approveKyc(Request $request, $id)

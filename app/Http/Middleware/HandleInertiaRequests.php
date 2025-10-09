@@ -34,6 +34,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'notifications' => $request->user() 
+                ? $request->user()->notifications()->orderBy('created_at', 'desc')->limit(10)->get()
+                : [],
+            'unreadCount' => $request->user() 
+                ? $request->user()->unreadNotifications()->count()
+                : 0,
         ];
     }
 }

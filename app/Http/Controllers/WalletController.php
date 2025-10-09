@@ -108,8 +108,29 @@ class WalletController extends Controller
             
             $wallet->addBalance($request->amount);
             
+            // Notify user
+            \App\Models\Notification::createForUser(
+                $user->id,
+                'transaction',
+                'Deposit Successful',
+                "Your deposit of {$request->amount} {$cryptocurrency->symbol} has been credited to your wallet.",
+                '/wallet',
+                ['transaction_id' => $transaction->id],
+                '💰'
+            );
+            
             return back()->with('success', 'Deposit successful! Funds added to your wallet.');
         }
+        
+        // Notify all admins about new pending transaction
+        \App\Models\Notification::createForAllAdmins(
+            'transaction',
+            'New Deposit Request',
+            "{$user->name} requested a deposit of {$request->amount} {$cryptocurrency->symbol}",
+            '/admin/transactions',
+            ['transaction_id' => $transaction->id],
+            '💵'
+        );
         
         return back()->with('success', 'Deposit request submitted. Awaiting confirmation.');
     }
@@ -166,9 +187,34 @@ class WalletController extends Controller
         // 2. Process blockchain transaction
         // 3. Update status when confirmed
         
+        // Notify all admins about new withdrawal request
+        \App\Models\Notification::createForAllAdmins(
+            'transaction',
+            'New Withdrawal Request',
+            "{$user->name} requested a withdrawal of {$request->amount} {$cryptocurrency->symbol}",
+            '/admin/transactions',
+            ['transaction_id' => $transaction->id],
+            '💸'
+        );
+        
+        // Notify user
+        \App\Models\Notification::createForUser(
+            $user->id,
+            'transaction',
+            'Withdrawal Request Submitted',
+            "Your withdrawal request of {$request->amount} {$cryptocurrency->symbol} has been submitted and is awaiting approval.",
+            '/transactions',
+            ['transaction_id' => $transaction->id],
+            '⏳'
+        );
+        
+        return back()->with('success', 'Withdrawal request submitted successfully. Awaiting approval.');
+        // 2. Process blockchain transaction
+        // 3. Update status when confirmed
+        
         return back()->with('success', 'Withdrawal request submitted successfully. Awaiting approval.');
     }
-    
+
     public function generateAddress(Request $request)
     {
         $request->validate([

@@ -8,8 +8,8 @@ import TransactionsTable from '@/Components/Admin/TransactionsTable';
 import UsersTable from '@/Components/Admin/UsersTable';
 import KycQueue from '@/Components/Admin/KycQueue';
 
-export default function AdminDashboard({ 
-    auth, 
+export default function AdminDashboard({
+    auth,
     stats,
     recentTransactions,
     recentUsers,
@@ -70,8 +70,8 @@ export default function AdminDashboard({
 
             <div className="flex h-screen bg-gray-50 overflow-hidden">
                 {/* Sidebar */}
-                <AdminSidebar 
-                    activeTab={activeTab} 
+                <AdminSidebar
+                    activeTab={activeTab}
                     setActiveTab={setActiveTab}
                     isOpen={sidebarOpen}
                     setIsOpen={setSidebarOpen}
@@ -82,7 +82,7 @@ export default function AdminDashboard({
                 {/* Right side container */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Header */}
-                    <AdminHeader 
+                    <AdminHeader
                         user={auth.user}
                         stats={stats}
                         selectedTimeframe={selectedTimeframe}
@@ -94,7 +94,7 @@ export default function AdminDashboard({
 
                     {/* Main Content */}
                     <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-                        
+
                         {/* System Health Banner */}
                         {systemHealth && systemHealth.status !== 'healthy' && (
                             <div className="mb-4 sm:mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
@@ -289,11 +289,10 @@ export default function AdminDashboard({
                                                 {recentTransactions.slice(0, 5).map((transaction) => (
                                                     <div key={transaction.id} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                                         <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                                                transaction.status === 'completed' ? 'bg-green-500' :
-                                                                transaction.status === 'pending' ? 'bg-yellow-500' :
-                                                                'bg-red-500'
-                                                            }`}></div>
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${transaction.status === 'completed' ? 'bg-green-500' :
+                                                                    transaction.status === 'pending' ? 'bg-yellow-500' :
+                                                                        'bg-red-500'
+                                                                }`}></div>
                                                             <div className="min-w-0 flex-1">
                                                                 <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                                                                     {transaction.user?.name || 'Unknown'}
@@ -307,11 +306,10 @@ export default function AdminDashboard({
                                                             <div className="text-xs sm:text-sm font-medium text-gray-900">
                                                                 {parseFloat(transaction.amount).toFixed(4)}
                                                             </div>
-                                                            <div className={`text-xs capitalize ${
-                                                                transaction.status === 'completed' ? 'text-green-600' :
-                                                                transaction.status === 'pending' ? 'text-yellow-600' :
-                                                                'text-red-600'
-                                                            }`}>
+                                                            <div className={`text-xs capitalize ${transaction.status === 'completed' ? 'text-green-600' :
+                                                                    transaction.status === 'pending' ? 'text-yellow-600' :
+                                                                        'text-red-600'
+                                                                }`}>
                                                                 {transaction.status}
                                                             </div>
                                                         </div>
@@ -356,11 +354,10 @@ export default function AdminDashboard({
                                                             </div>
                                                         </div>
                                                         <div className="text-right ml-2 flex-shrink-0">
-                                                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                                                user.is_active 
-                                                                    ? 'bg-green-100 text-green-800' 
+                                                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.is_active
+                                                                    ? 'bg-green-100 text-green-800'
                                                                     : 'bg-red-100 text-red-800'
-                                                            }`}>
+                                                                }`}>
                                                                 {user.is_active ? 'Active' : 'Inactive'}
                                                             </div>
                                                             <div className="text-xs text-gray-500 mt-1">
