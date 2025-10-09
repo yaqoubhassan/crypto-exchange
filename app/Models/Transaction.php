@@ -55,5 +55,20 @@ class Transaction extends Model
     {
         return $query->where('status', 'completed');
     }
+
+     public function scopeDeposits($query)
+    {
+        return $query->where('type', 'deposit');
+    }
+
+    public function scopeWithdrawals($query)
+    {
+        return $query->where('type', 'withdrawal');
+    }
+
+    public function scopeTrades($query)
+    {
+        return $query->whereIn('type', ['buy', 'sell']);
+    }
 }
 

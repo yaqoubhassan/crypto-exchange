@@ -50,6 +50,7 @@ class Order extends Model
         return $this->belongsTo(Cryptocurrency::class, 'quote_currency_id');
     }
 
+    // Query Scopes
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
@@ -58,5 +59,25 @@ class Order extends Model
     public function scopeActive($query)
     {
         return $query->whereIn('status', ['pending', 'partial']);
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'filled');
+    }
+
+    public function scopeBuyOrders($query)
+    {
+        return $query->where('side', 'buy');
+    }
+
+    public function scopeSellOrders($query)
+    {
+        return $query->where('side', 'sell');
+    }
+
+    public function scopeCancelled($query)
+    {
+        return $query->where('status', 'cancelled');
     }
 }
