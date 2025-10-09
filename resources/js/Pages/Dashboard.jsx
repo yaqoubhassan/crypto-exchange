@@ -95,20 +95,20 @@ export default function Dashboard({
                                                         <p className="text-sm text-gray-500">{item.symbol}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="font-medium text-gray-900">${item.value.toFixed(2)}</p>
-                                                        <p className="text-sm text-gray-500">{item.balance.toFixed(8)}</p>
+                                                        <p className="font-medium text-gray-900">${parseFloat(item.value || 0).toFixed(2)}</p>
+                                                        <p className="text-sm text-gray-500">{parseFloat(item.balance || 0).toFixed(8)}</p>
                                                     </div>
                                                 </div>
                                                 <div className="mt-2 bg-gray-200 rounded-full h-2">
                                                     <div
                                                         className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full"
-                                                        style={{ width: `${item.percentage}%` }}
+                                                        style={{ width: `${parseFloat(item.percentage || 0)}%` }}
                                                     ></div>
                                                 </div>
                                             </div>
                                         </div>
                                         <span className="ml-4 text-sm font-medium text-gray-600">
-                                            {item.percentage.toFixed(1)}%
+                                            {parseFloat(item.percentage || 0).toFixed(1)}%
                                         </span>
                                     </div>
                                 ))}
@@ -220,7 +220,7 @@ export default function Dashboard({
                                         </div>
                                         <div className="text-right">
                                             <p className="font-medium text-gray-900">
-                                                {parseFloat(transaction.amount).toFixed(8)}
+                                                {parseFloat(transaction.amount || 0).toFixed(8)}
                                             </p>
                                             <p className={`text-xs capitalize ${transaction.status === 'completed' ? 'text-green-600' :
                                                 transaction.status === 'pending' ? 'text-yellow-600' :
@@ -272,7 +272,7 @@ export default function Dashboard({
                                         </div>
                                         <div className="text-right">
                                             <p className="font-medium text-gray-900">
-                                                {parseFloat(order.quantity).toFixed(8)}
+                                                {parseFloat(order.quantity || 0).toFixed(8)}
                                             </p>
                                             <p className="text-sm text-gray-500">
                                                 ${order.price ? parseFloat(order.price).toFixed(2) : 'Market'}

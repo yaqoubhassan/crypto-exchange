@@ -133,36 +133,36 @@ export default function WalletIndex({ wallets, cryptocurrencies, stats, recentTr
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900">${item.value.toFixed(2)}</p>
-                        <p className={`text-sm ${item.change_24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {item.change_24h >= 0 ? '↑' : '↓'} {Math.abs(item.change_24h)}%
+                        <p className="text-lg font-bold text-gray-900">${parseFloat(item.value || 0).toFixed(2)}</p>
+                        <p className={`text-sm ${parseFloat(item.change_24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {parseFloat(item.change_24h || 0) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(item.change_24h || 0))}%
                         </p>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Available:</span>
-                        <span className="font-medium">{item.balance.toFixed(8)} {item.symbol}</span>
+                        <span className="font-medium">{parseFloat(item.balance || 0).toFixed(8)} {item.symbol}</span>
                       </div>
-                      {item.locked_balance > 0 && (
+                      {parseFloat(item.locked_balance || 0) > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Locked:</span>
-                          <span className="font-medium text-orange-600">{item.locked_balance.toFixed(8)} {item.symbol}</span>
+                          <span className="font-medium text-orange-600">{parseFloat(item.locked_balance || 0).toFixed(8)} {item.symbol}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Total:</span>
-                        <span className="font-semibold">{item.total_balance.toFixed(8)} {item.symbol}</span>
+                        <span className="font-semibold">{parseFloat(item.total_balance || 0).toFixed(8)} {item.symbol}</span>
                       </div>
                     </div>
                     <div className="mt-3 bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full"
-                        style={{ width: `${item.percentage}%` }}
+                        style={{ width: `${parseFloat(item.percentage || 0)}%` }}
                       ></div>
                     </div>
                     <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-gray-500">{item.percentage.toFixed(1)}% of portfolio</span>
+                      <span className="text-xs text-gray-500">{parseFloat(item.percentage || 0).toFixed(1)}% of portfolio</span>
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleDeposit(item)}
@@ -240,16 +240,16 @@ export default function WalletIndex({ wallets, cryptocurrencies, stats, recentTr
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Deposits:</span>
-                <span className="font-medium">${parseFloat(stats.total_deposits).toFixed(2)}</span>
+                <span className="font-medium">${parseFloat(stats.total_deposits || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Withdrawals:</span>
-                <span className="font-medium">${parseFloat(stats.total_withdrawals).toFixed(2)}</span>
+                <span className="font-medium">${parseFloat(stats.total_withdrawals || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t pt-2">
                 <span className="text-gray-900 font-semibold">Net Balance:</span>
                 <span className="font-bold text-indigo-600">
-                  ${(parseFloat(stats.total_deposits) - parseFloat(stats.total_withdrawals)).toFixed(2)}
+                  ${(parseFloat(stats.total_deposits || 0) - parseFloat(stats.total_withdrawals || 0)).toFixed(2)}
                 </span>
               </div>
             </div>
