@@ -50,6 +50,13 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        // Update last login timestamp and IP address
+        $user = Auth::user();
+        $user->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $this->ip(),
+        ]);
     }
 
     /**
