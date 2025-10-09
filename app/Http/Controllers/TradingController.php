@@ -7,15 +7,29 @@ use Inertia\Inertia;
 
 class TradingController extends Controller
 {
-    
     public function index()
     {
         $cryptocurrencies = \App\Models\Cryptocurrency::active()->get();
         $userWallets = auth()->user()->wallets()->with('cryptocurrency')->get();
         
+        // Ensure user has USD wallet for trading
+        $usdCurrency = \App\Models\Cryptocurrency::where('symbol', 'USD')->first();
+        if ($usdCurrency) {
+            auth()->user()->createWalletIfNotExists($usdCurrency->id);
+        }
+        
+        // Get active orders for the user
+        $activeOrders = auth()->user()->orders()
+            ->with(['baseCurrency', 'quoteCurrency'])
+            ->active()
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
         return Inertia::render('Trading/Index', [
             'cryptocurrencies' => $cryptocurrencies,
             'wallets' => $userWallets,
+            'activeOrders' => $activeOrders,
         ]);
     }
 
@@ -72,6 +86,10 @@ class TradingController extends Controller
         $baseCurrency = \App\Models\Cryptocurrency::findOrFail($request->base_currency_id);
         $quoteCurrency = \App\Models\Cryptocurrency::findOrFail($request->quote_currency_id);
 
+        // Ensure wallets exist
+        $user->createWalletIfNotExists($baseCurrency->id);
+        $user->createWalletIfNotExists($quoteCurrency->id);
+
         // Create order
         $order = new \App\Models\Order();
         $order->order_id = 'ORD-' . strtoupper(uniqid());
@@ -89,14 +107,26 @@ class TradingController extends Controller
             $requiredAmount = $request->quantity * ($request->price ?? $baseCurrency->current_price);
             $wallet = $user->wallets()->where('cryptocurrency_id', $quoteCurrency->id)->first();
             
-            if (!$wallet || !$wallet->lockBalance($requiredAmount)) {
-                return response()->json(['error' => 'Insufficient balance'], 400);
+            if (!$wallet || $wallet->balance < $requiredAmount) {
+                return response()->json([
+                    'error' => 'Insufficient balance. Required: ' . $requiredAmount . ' ' . $quoteCurrency->symbol
+                ], 400);
+            }
+            
+            if (!$wallet->lockBalance($requiredAmount)) {
+                return response()->json(['error' => 'Failed to lock balance'], 400);
             }
         } else {
             $wallet = $user->wallets()->where('cryptocurrency_id', $baseCurrency->id)->first();
             
-            if (!$wallet || !$wallet->lockBalance($request->quantity)) {
-                return response()->json(['error' => 'Insufficient balance'], 400);
+            if (!$wallet || $wallet->balance < $request->quantity) {
+                return response()->json([
+                    'error' => 'Insufficient balance. Required: ' . $request->quantity . ' ' . $baseCurrency->symbol
+                ], 400);
+            }
+            
+            if (!$wallet->lockBalance($request->quantity)) {
+                return response()->json(['error' => 'Failed to lock balance'], 400);
             }
         }
 
@@ -107,7 +137,11 @@ class TradingController extends Controller
             $this->processMarketOrder($order);
         }
 
-        return response()->json(['order' => $order], 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Order placed successfully',
+            'order' => $order->load(['baseCurrency', 'quoteCurrency'])
+        ], 201);
     }
 
     private function processMarketOrder($order)

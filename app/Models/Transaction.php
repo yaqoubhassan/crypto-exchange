@@ -70,5 +70,10 @@ class Transaction extends Model
     {
         return $query->whereIn('type', ['buy', 'sell']);
     }
+
+     public function scopeFailed($query)
+    {
+        return $query->where('status', 'failed');
+    }
 }
 
