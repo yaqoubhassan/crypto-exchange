@@ -1,19 +1,52 @@
-import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout.jsx';
+import Toast from '@/Components/Trading/Toast';
 
 export default function OrderShow({ order, transactions }) {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const handleCancelOrder = async () => {
+  const { flash } = usePage().props;
+
+  // Show toast for flash messages
+  useEffect(() => {
+    if (flash?.success) {
+      setToast({
+        message: flash.success,
+        type: 'success'
+      });
+    } else if (flash?.error) {
+      setToast({
+        message: flash.error,
+        type: 'error'
+      });
+    }
+  }, [flash]);
+
+  const handleCancelOrder = () => {
     setCanceling(true);
     router.post(`/orders/${order.id}/cancel`, {}, {
       onSuccess: () => {
         setShowCancelModal(false);
+        setCanceling(false);
+
+        // Show success toast
+        setToast({
+          message: 'Order cancelled successfully! Funds have been released to your wallet.',
+          type: 'success'
+        });
       },
-      onError: () => {
-        alert('Failed to cancel order');
+      onError: (errors) => {
+        const errorMessage = errors.message || 'Failed to cancel order. Please try again.';
+        setCanceling(false);
+
+        // Show error toast
+        setToast({
+          message: errorMessage,
+          type: 'error'
+        });
       },
       onFinish: () => {
         setCanceling(false);
@@ -133,7 +166,7 @@ export default function OrderShow({ order, transactions }) {
               <div>
                 <p className="text-sm text-gray-500 mb-1">Status</p>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(order.status)}`}>
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  {order.status}
                 </span>
               </div>
             </div>
@@ -141,79 +174,67 @@ export default function OrderShow({ order, transactions }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Trading Pair</p>
-                <p className="text-base font-semibold text-gray-900">
+                <p className="text-base font-medium text-gray-900">
                   {order.base_currency?.symbol}/{order.quote_currency?.symbol}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Order Type</p>
-                <p className="text-base font-medium text-gray-900 capitalize">{order.type}</p>
+                <p className="text-sm text-gray-500 mb-1">Side</p>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getSideBadge(order.side)}`}>
+                  {order.side}
+                </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500 mb-1">Side</p>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getSideBadge(order.side)}`}>
-                  {order.side.toUpperCase()}
-                </span>
+                <p className="text-sm text-gray-500 mb-1">Type</p>
+                <p className="text-base font-medium text-gray-900 capitalize">{order.type}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Time in Force</p>
-                <p className="text-base font-medium text-gray-900">{order.time_in_force || 'GTC'}</p>
+                <p className="text-sm text-gray-500 mb-1">Price</p>
+                <p className="text-base font-medium text-gray-900">
+                  {order.price ? `$${parseFloat(order.price).toFixed(2)}` : 'Market Price'}
+                </p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-200">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Order Price</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {order.price ? `$${parseFloat(order.price).toFixed(2)}` : 'Market Price'}
-                  </p>
-                </div>
-                {order.average_price && (
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Average Fill Price</p>
-                    <p className="text-lg font-semibold text-indigo-600">
-                      ${parseFloat(order.average_price).toFixed(2)}
-                    </p>
-                  </div>
-                )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Quantity</p>
+                <p className="text-base font-medium text-gray-900">
+                  {parseFloat(order.quantity).toFixed(8)} {order.base_currency?.symbol}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Filled Quantity</p>
+                <p className="text-base font-medium text-gray-900">
+                  {parseFloat(order.filled_quantity).toFixed(8)} {order.base_currency?.symbol}
+                </p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-200">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Quantity</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {parseFloat(order.quantity).toFixed(8)} {order.base_currency?.symbol}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Filled Quantity</p>
-                  <p className="text-lg font-semibold text-blue-600">
-                    {parseFloat(order.filled_quantity).toFixed(8)} {order.base_currency?.symbol}
-                  </p>
-                </div>
+            {order.average_price && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Average Fill Price</p>
+                <p className="text-base font-medium text-gray-900">
+                  ${parseFloat(order.average_price).toFixed(2)}
+                </p>
               </div>
+            )}
 
-              {order.status === 'partial' && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-500">Fill Progress</p>
-                    <p className="text-sm font-medium text-gray-900">{calculateProgress()}%</p>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-blue-600 h-3 rounded-full transition-all"
-                      style={{ width: `${calculateProgress()}%` }}
-                    ></div>
-                  </div>
+            {order.filled_quantity > 0 && (
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Fill Progress</p>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all"
+                    style={{ width: `${calculateProgress()}%` }}
+                  ></div>
                 </div>
-              )}
-            </div>
+                <p className="text-xs text-gray-600 mt-1">{calculateProgress()}% filled</p>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-gray-200">
               <div className="grid grid-cols-2 gap-4">
@@ -293,25 +314,34 @@ export default function OrderShow({ order, transactions }) {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {transactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{transaction.transaction_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
-                      {transaction.type}
+                  <tr key={transaction.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${transaction.type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                        {transaction.type}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {parseFloat(transaction.amount).toFixed(8)} {transaction.cryptocurrency?.symbol}
+                      {parseFloat(transaction.amount).toFixed(8)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${transaction.price ? parseFloat(transaction.price).toFixed(2) : 'N/A'}
@@ -378,6 +408,15 @@ export default function OrderShow({ order, transactions }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </DashboardLayout>
   );

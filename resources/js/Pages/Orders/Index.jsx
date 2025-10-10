@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, router, Link, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout.jsx';
+import Toast from '@/Components/Trading/Toast';
 
 export default function OrdersIndex({ orders, stats, filters }) {
   const [searchTerm, setSearchTerm] = useState(filters.search || '');
@@ -11,6 +12,24 @@ export default function OrdersIndex({ orders, stats, filters }) {
   const [cancelingOrder, setCancelingOrder] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const { flash } = usePage().props;
+
+  // Show toast for flash messages
+  useEffect(() => {
+    if (flash?.success) {
+      setToast({
+        message: flash.success,
+        type: 'success'
+      });
+    } else if (flash?.error) {
+      setToast({
+        message: flash.error,
+        type: 'error'
+      });
+    }
+  }, [flash]);
 
   const applyFilters = () => {
     router.get('/orders', {
@@ -35,32 +54,48 @@ export default function OrdersIndex({ orders, stats, filters }) {
     });
   };
 
-  const openCancelModal = (order) => {
+  const openCancelModal = (order, e) => {
+    e.stopPropagation(); // Prevent row click
     setSelectedOrder(order);
     setShowCancelModal(true);
   };
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = () => {
     if (!selectedOrder) return;
 
     setCancelingOrder(selectedOrder.id);
-    try {
-      await router.post(`/orders/${selectedOrder.id}/cancel`, {}, {
-        onSuccess: () => {
-          setShowCancelModal(false);
-          setSelectedOrder(null);
-        },
-        onError: () => {
-          alert('Failed to cancel order');
-        },
-        onFinish: () => {
-          setCancelingOrder(null);
-        }
-      });
-    } catch (error) {
-      setCancelingOrder(null);
-      alert('Error canceling order');
-    }
+
+    // Use Inertia router correctly without await
+    router.post(`/orders/${selectedOrder.id}/cancel`, {}, {
+      onSuccess: () => {
+        setShowCancelModal(false);
+        setSelectedOrder(null);
+        setCancelingOrder(null);
+
+        // Show success toast
+        setToast({
+          message: 'Order cancelled successfully! Funds have been released to your wallet.',
+          type: 'success'
+        });
+      },
+      onError: (errors) => {
+        const errorMessage = errors.message || 'Failed to cancel order. Please try again.';
+        setCancelingOrder(null);
+
+        // Show error toast
+        setToast({
+          message: errorMessage,
+          type: 'error'
+        });
+      },
+      onFinish: () => {
+        setCancelingOrder(null);
+      }
+    });
+  };
+
+  const handleRowClick = (orderId) => {
+    router.visit(`/orders/${orderId}`);
   };
 
   const getStatusBadge = (status) => {
@@ -87,112 +122,88 @@ export default function OrdersIndex({ orders, stats, filters }) {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
-      year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
-  const calculateProgress = (filled, total) => {
-    return ((parseFloat(filled) / parseFloat(total)) * 100).toFixed(2);
+  const formatPrice = (price) => {
+    return parseFloat(price).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    });
   };
 
   return (
     <DashboardLayout>
-      <Head title="Orders" />
+      <Head title="My Orders" />
 
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
+        <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
         <p className="mt-1 text-sm text-gray-600">
-          View and manage all your trading orders
+          View and manage your trading orders
         </p>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Orders</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{stats.total}</p>
-            </div>
-            <div className="text-4xl">📋</div>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-sm text-gray-600 mb-1">Total Orders</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Orders</p>
-              <p className="text-2xl font-bold text-blue-600 mt-2">{stats.active}</p>
-            </div>
-            <div className="text-4xl">⏳</div>
-          </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-sm text-gray-600 mb-1">Active</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.active}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-green-600 mt-2">{stats.completed}</p>
-            </div>
-            <div className="text-4xl">✅</div>
-          </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-sm text-gray-600 mb-1">Completed</div>
+          <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">This Week</p>
-              <p className="text-2xl font-bold text-indigo-600 mt-2">{stats.this_week}</p>
-            </div>
-            <div className="text-4xl">📅</div>
-          </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-sm text-gray-600 mb-1">Cancelled</div>
+          <div className="text-2xl font-bold text-gray-600">{stats.cancelled}</div>
         </div>
       </div>
 
-      {/* Search and Filter Section */}
-      <div className="bg-white rounded-lg shadow-sm mb-6 border border-gray-200">
-        <div className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search Input */}
+      {/* Filters Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Search */}
             <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && applyFilters()}
-                  placeholder="Search by order ID or currency pair..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-400">🔍</span>
-                </div>
-              </div>
+              <input
+                type="text"
+                placeholder="Search by Order ID, Currency..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && applyFilters()}
+                className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
 
-            {/* Filter Toggle Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-            >
-              <span>🎚️</span>
-              <span>Filters</span>
-            </button>
-
-            {/* Search Button */}
-            <button
-              onClick={applyFilters}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-            >
-              Search
-            </button>
+            {/* Filter Toggles */}
+            <div className="flex gap-2">
+              <button
+                onClick={applyFilters}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Search
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+            </div>
           </div>
 
-          {/* Collapsible Filters */}
+          {/* Advanced Filters */}
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-200">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Status
@@ -294,7 +305,11 @@ export default function OrdersIndex({ orders, stats, filters }) {
             <tbody className="bg-white divide-y divide-gray-200">
               {orders.data && orders.data.length > 0 ? (
                 orders.data.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={order.id}
+                    onClick={() => handleRowClick(order.id)}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <span className="text-2xl mr-2">{getSideIcon(order.side)}</span>
@@ -302,36 +317,26 @@ export default function OrdersIndex({ orders, stats, filters }) {
                           <div className="text-sm font-medium text-gray-900">
                             #{order.order_id}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {order.time_in_force || 'GTC'}
-                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900">
+                      <div className="text-sm font-medium text-gray-900">
                         {order.base_currency?.symbol}/{order.quote_currency?.symbol}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-600 capitalize">
-                        {order.type}
-                      </span>
+                      <div className="text-sm text-gray-900 capitalize">{order.type}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSideBadge(order.side)}`}>
-                        {order.side.toUpperCase()}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getSideBadge(order.side)}`}>
+                        {order.side}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {order.price ? `$${parseFloat(order.price).toFixed(2)}` : 'Market'}
+                        {order.price ? `$${formatPrice(order.price)}` : 'Market'}
                       </div>
-                      {order.average_price && (
-                        <div className="text-xs text-gray-500">
-                          Avg: ${parseFloat(order.average_price).toFixed(2)}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -342,35 +347,36 @@ export default function OrdersIndex({ orders, stats, filters }) {
                       <div className="text-sm text-gray-900">
                         {parseFloat(order.filled_quantity).toFixed(8)}
                       </div>
-                      {order.status === 'partial' && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                          <div
-                            className="bg-blue-600 h-1.5 rounded-full"
-                            style={{ width: `${calculateProgress(order.filled_quantity, order.quantity)}%` }}
-                          ></div>
-                        </div>
-                      )}
+                      <div className="text-xs text-gray-500">
+                        {((parseFloat(order.filled_quantity) / parseFloat(order.quantity)) * 100).toFixed(1)}%
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(order.status)}`}>
+                        {order.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(order.created_at)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {['pending', 'partial'].includes(order.status) ? (
-                        <button
-                          onClick={() => openCancelModal(order)}
-                          disabled={cancelingOrder === order.id}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="text-indigo-600 hover:text-indigo-800 font-medium"
                         >
-                          Cancel
-                        </button>
-                      ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                      )}
+                          View
+                        </Link>
+                        {['pending', 'partial'].includes(order.status) && (
+                          <button
+                            onClick={(e) => openCancelModal(order, e)}
+                            disabled={cancelingOrder === order.id}
+                            className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancelingOrder === order.id ? 'Canceling...' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -421,7 +427,11 @@ export default function OrdersIndex({ orders, stats, filters }) {
       <div className="lg:hidden space-y-4">
         {orders.data && orders.data.length > 0 ? (
           orders.data.map((order) => (
-            <div key={order.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div
+              key={order.id}
+              onClick={() => handleRowClick(order.id)}
+              className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center flex-1">
                   <span className="text-3xl mr-3">{getSideIcon(order.side)}</span>
@@ -452,47 +462,39 @@ export default function OrdersIndex({ orders, stats, filters }) {
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Price</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {order.price ? `$${parseFloat(order.price).toFixed(2)}` : 'Market'}
+                    {order.price ? `$${formatPrice(order.price)}` : 'Market'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Amount</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {parseFloat(order.quantity).toFixed(8)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Filled</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {((parseFloat(order.filled_quantity) / parseFloat(order.quantity)) * 100).toFixed(1)}%
                   </p>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-xs text-gray-500">Amount</p>
-                    <p className="text-sm font-medium text-gray-900">
-                      {parseFloat(order.quantity).toFixed(8)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Filled</p>
-                    <p className="text-sm font-medium text-gray-900">
-                      {parseFloat(order.filled_quantity).toFixed(8)}
-                    </p>
-                  </div>
-                </div>
-
-                {order.status === 'partial' && (
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${calculateProgress(order.filled_quantity, order.quantity)}%` }}
-                    ></div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between mt-3">
-                  <div className="text-xs text-gray-500">
-                    {formatDate(order.created_at)}
-                  </div>
+              <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                <span className="text-xs text-gray-500">{formatDate(order.created_at)}</span>
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Link
+                    href={`/orders/${order.id}`}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    View Details
+                  </Link>
                   {['pending', 'partial'].includes(order.status) && (
                     <button
-                      onClick={() => openCancelModal(order)}
+                      onClick={(e) => openCancelModal(order, e)}
                       disabled={cancelingOrder === order.id}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50"
+                      className="text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
                     >
-                      Cancel
+                      {cancelingOrder === order.id ? 'Canceling...' : 'Cancel'}
                     </button>
                   )}
                 </div>
@@ -536,7 +538,7 @@ export default function OrdersIndex({ orders, stats, filters }) {
       </div>
 
       {/* Cancel Order Modal */}
-      {showCancelModal && (
+      {showCancelModal && selectedOrder && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center mb-4">
@@ -544,29 +546,63 @@ export default function OrdersIndex({ orders, stats, filters }) {
               <h3 className="text-lg font-semibold text-gray-900">Cancel Order</h3>
             </div>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to cancel this order? This action cannot be undone.
+              Are you sure you want to cancel this order? Any locked funds will be released back to your wallet.
             </p>
-            <div className="bg-gray-50 p-3 rounded-lg mb-6">
-              <div className="text-sm text-gray-600">Order ID:</div>
-              <div className="font-medium text-gray-900">{selectedOrder?.order_id}</div>
+            <div className="bg-gray-50 p-4 rounded-lg mb-6 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Order ID:</span>
+                <span className="font-medium text-gray-900">{selectedOrder.order_id}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Pair:</span>
+                <span className="font-medium text-gray-900">
+                  {selectedOrder.base_currency?.symbol}/{selectedOrder.quote_currency?.symbol}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Type:</span>
+                <span className="font-medium text-gray-900 capitalize">
+                  {selectedOrder.type} {selectedOrder.side}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Remaining:</span>
+                <span className="font-medium text-gray-900">
+                  {(parseFloat(selectedOrder.quantity) - parseFloat(selectedOrder.filled_quantity)).toFixed(8)}{' '}
+                  {selectedOrder.base_currency?.symbol}
+                </span>
+              </div>
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setSelectedOrder(null);
+                }}
+                disabled={cancelingOrder}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Keep Order
               </button>
               <button
                 onClick={handleCancelOrder}
                 disabled={cancelingOrder}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelingOrder ? 'Canceling...' : 'Cancel Order'}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </DashboardLayout>
   );

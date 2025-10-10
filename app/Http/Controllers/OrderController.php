@@ -119,13 +119,18 @@ class OrderController extends Controller
     {
         $user = auth()->user();
         
-        // Find the order
-        $order = $user->orders()->findOrFail($id);
+        // Find the order WITH relationships loaded
+        $order = $user->orders()
+            ->with(['baseCurrency', 'quoteCurrency'])
+            ->findOrFail($id);
         
         // Check if order can be cancelled
         if (!in_array($order->status, ['pending', 'partial'])) {
             return back()->with('error', 'This order cannot be cancelled.');
         }
+        
+        // Calculate remaining quantity
+        $remainingQuantity = $order->quantity - $order->filled_quantity;
         
         // Release locked funds
         if ($order->side === 'buy') {
@@ -135,9 +140,13 @@ class OrderController extends Controller
                 ->first();
             
             if ($wallet) {
-                $lockedAmount = ($order->quantity - $order->filled_quantity) * 
-                              ($order->price ?? $order->base_currency->current_price);
-                $wallet->unlockBalance($lockedAmount);
+                // Calculate locked amount based on remaining quantity
+                $price = $order->price ?? ($order->baseCurrency ? $order->baseCurrency->current_price : 0);
+                $lockedAmount = $remainingQuantity * $price;
+                
+                if ($lockedAmount > 0) {
+                    $wallet->unlockBalance($lockedAmount);
+                }
             }
         } else {
             // Release locked base currency (e.g., BTC)
@@ -145,8 +154,7 @@ class OrderController extends Controller
                 ->where('cryptocurrency_id', $order->base_currency_id)
                 ->first();
             
-            if ($wallet) {
-                $remainingQuantity = $order->quantity - $order->filled_quantity;
+            if ($wallet && $remainingQuantity > 0) {
                 $wallet->unlockBalance($remainingQuantity);
             }
         }
@@ -155,16 +163,19 @@ class OrderController extends Controller
         $order->status = 'cancelled';
         $order->save();
         
-        // Create notification
+        // Create notification with proper null checking
+        $baseCurrencySymbol = $order->baseCurrency ? $order->baseCurrency->symbol : 'Unknown';
+        $quoteCurrencySymbol = $order->quoteCurrency ? $order->quoteCurrency->symbol : 'Unknown';
+        
         \App\Models\Notification::create([
             'user_id' => $user->id,
             'type' => 'order_cancelled',
             'title' => 'Order Cancelled',
-            'message' => "Your {$order->side} order for {$order->quantity} {$order->base_currency->symbol} has been cancelled.",
+            'message' => "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been cancelled.",
             'data' => json_encode([
                 'order_id' => $order->order_id,
-                'order_type' => $order->type,
-                'side' => $order->side,
+                'base_currency' => $baseCurrencySymbol,
+                'quote_currency' => $quoteCurrencySymbol,
             ]),
         ]);
         
