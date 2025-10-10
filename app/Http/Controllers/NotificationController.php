@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class NotificationController extends Controller
@@ -42,5 +41,30 @@ class NotificationController extends Controller
         ]);
 
         return back()->with('success', 'All notifications marked as read');
+    }
+
+    /**
+     * Delete all notifications for the authenticated user
+     */
+    public function clearAll()
+    {
+        $count = auth()->user()->notifications()->count();
+
+        auth()->user()->notifications()->delete();
+
+        return back()->with('success', $count > 0
+            ? "All {$count} notification" . ($count !== 1 ? 's' : '') . " cleared successfully!"
+            : "No notifications to clear");
+    }
+
+    /**
+     * Delete a single notification
+     */
+    public function destroy($id)
+    {
+        $notification = auth()->user()->notifications()->findOrFail($id);
+        $notification->delete();
+
+        return back()->with('success', 'Notification deleted successfully');
     }
 }

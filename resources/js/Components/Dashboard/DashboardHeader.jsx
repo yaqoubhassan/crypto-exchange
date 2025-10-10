@@ -1,13 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import Modal from '@/Components/Modal';
+import Toast from '@/Components/Trading/Toast';
 
 export default function DashboardHeader({ user }) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [toast, setToast] = useState(null);
 
   // Properly destructure notifications from props
-  const { notifications = [], unreadCount = 0 } = usePage().props;
+  const { notifications = [], unreadCount = 0, flash } = usePage().props;
+
+  // Show toast for flash messages
+  useEffect(() => {
+    if (flash?.success) {
+      setToast({
+        message: flash.success,
+        type: 'success'
+      });
+    } else if (flash?.error) {
+      setToast({
+        message: flash.error,
+        type: 'error'
+      });
+    }
+  }, [flash]);
 
   const handleLogout = () => {
     router.post(route('logout'));
@@ -17,9 +37,6 @@ export default function DashboardHeader({ user }) {
     router.post(`/notifications/${notificationId}/read`, {}, {
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => {
-        // Optionally close notification dropdown after marking as read
-      }
     });
   };
 
@@ -27,6 +44,34 @@ export default function DashboardHeader({ user }) {
     router.post('/notifications/mark-all-read', {}, {
       preserveScroll: true,
       preserveState: true,
+    });
+  };
+
+  const openClearModal = () => {
+    setShowClearModal(true);
+  };
+
+  const clearAllNotifications = () => {
+    setClearing(true);
+
+    router.delete('/notifications/clear-all', {
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowClearModal(false);
+        setShowNotifications(false);
+        setClearing(false);
+        setToast({
+          message: 'All notifications cleared successfully!',
+          type: 'success'
+        });
+      },
+      onError: () => {
+        setClearing(false);
+        setToast({
+          message: 'Failed to clear notifications. Please try again.',
+          type: 'error'
+        });
+      }
     });
   };
 
@@ -58,31 +103,22 @@ export default function DashboardHeader({ user }) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo and Mobile Menu Button */}
-          <div className="flex items-center">
-            <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-
-            <Link href="/dashboard" className="flex items-center ml-3 lg:ml-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">CE</span>
+    <>
+      <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[60] shadow-sm">
+        <div className="h-16 flex items-center justify-between px-4 sm:px-6 lg:pl-72 lg:pr-8">
+          {/* Logo/Brand - Always visible */}
+          <div className="flex items-center flex-shrink-0">
+            <Link href="/dashboard" className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+                <span className="text-white font-bold text-xl">C</span>
               </div>
-              <span className="ml-2 text-xl font-bold text-gray-900 hidden sm:block">CryptoExchange</span>
+              <span className="text-xl font-bold text-gray-900 hidden sm:block whitespace-nowrap">CryptoExchange</span>
             </Link>
           </div>
 
-          {/* Search Bar - Hidden on mobile */}
-          <div className="hidden md:block flex-1 max-w-md mx-8">
-            <div className="relative">
+          {/* Search Bar - Hidden on mobile, visible on desktop */}
+          <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
+            <div className="relative w-full">
               <input
                 type="text"
                 placeholder="Search cryptocurrencies..."
@@ -125,22 +161,34 @@ export default function DashboardHeader({ user }) {
                     onClick={() => setShowNotifications(false)}
                   ></div>
                   <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-w-[calc(100vw-2rem)]">
-                    <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">Notifications</h3>
-                        {unreadCount > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
-                          </p>
-                        )}
+                    <div className="p-4 border-b border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">Notifications</h3>
+                          {unreadCount > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       {notifications.length > 0 && (
-                        <button
-                          onClick={markAllAsRead}
-                          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
-                        >
-                          Mark all read
-                        </button>
+                        <div className="flex gap-2 mt-2">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={markAllAsRead}
+                              className="flex-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium py-1 px-2 rounded hover:bg-indigo-50 transition-colors"
+                            >
+                              Mark all read
+                            </button>
+                          )}
+                          <button
+                            onClick={openClearModal}
+                            className="flex-1 text-xs text-red-600 hover:text-red-700 font-medium py-1 px-2 rounded hover:bg-red-50 transition-colors"
+                          >
+                            Clear all
+                          </button>
+                        </div>
                       )}
                     </div>
                     <div className="max-h-96 overflow-y-auto">
@@ -208,10 +256,19 @@ export default function DashboardHeader({ user }) {
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
                   <p className="text-xs text-gray-500">
-                    {user.email_verified_at ? '✓ Verified' : 'Not verified'}
+                    {user.email_verified_at ? (
+                      <span className="text-green-600 flex items-center">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Verified
+                      </span>
+                    ) : (
+                      'Not verified'
+                    )}
                   </p>
                 </div>
-                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="hidden md:block w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -223,76 +280,107 @@ export default function DashboardHeader({ user }) {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowProfileMenu(false)}
                   ></div>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      👤 Profile Settings
-                    </Link>
-                    <Link
-                      href="/security"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      🔒 Security
-                    </Link>
-                    <Link
-                      href="/wallet"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      💰 My Wallet
-                    </Link>
-                    {user.is_admin && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                    <div className="p-3 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                    </div>
+                    <div className="py-2">
                       <Link
-                        href="/admin/dashboard"
-                        className="block px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                        href="/dashboard"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
-                        ⚙️ Admin Panel
+                        Dashboard
                       </Link>
-                    )}
-                    <div className="border-t border-gray-200 my-2"></div>
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      🚪 Logout
-                    </button>
+                      <Link
+                        href="/profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Profile Settings
+                      </Link>
+                      <Link
+                        href="/wallet"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        My Wallet
+                      </Link>
+                      <Link
+                        href="/security"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Security
+                      </Link>
+                    </div>
+                    <div className="border-t border-gray-100">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile Menu */}
-      {showMobileMenu && (
-        <div className="lg:hidden border-t border-gray-200">
-          <nav className="px-2 pt-2 pb-3 space-y-1">
-            <Link href="/dashboard" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              📊 Dashboard
-            </Link>
-            <Link href="/trading" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              💹 Trading
-            </Link>
-            <Link href="/wallet" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              💰 Wallet
-            </Link>
-            <Link href="/transactions" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              💳 Transactions
-            </Link>
-            <Link href="/orders" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              📋 Orders
-            </Link>
-            <Link href="/security" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              🔒 Security
-            </Link>
-            <Link href="/profile" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-              👤 Profile
-            </Link>
-          </nav>
+      {/* Clear All Notifications Modal */}
+      <Modal show={showClearModal} onClose={() => !clearing && setShowClearModal(false)} maxWidth="md">
+        <div className="p-6">
+          <div className="flex items-start space-x-4 mb-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-2xl">🗑️</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Clear All Notifications
+              </h3>
+              <p className="text-sm text-gray-600">
+                Are you sure you want to delete all {notifications.length} notification{notifications.length !== 1 ? 's' : ''}? This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => setShowClearModal(false)}
+              disabled={clearing}
+              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={clearAllNotifications}
+              disabled={clearing}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {clearing ? (
+                <div className="flex items-center justify-center">
+                  <svg className="animate-spin h-5 w-5 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Clearing...
+                </div>
+              ) : 'Clear All'}
+            </button>
+          </div>
         </div>
+      </Modal>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
-    </header>
+    </>
   );
 }

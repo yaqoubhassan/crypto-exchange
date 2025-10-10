@@ -85,15 +85,6 @@ class AdminController extends Controller
             ];
         }
 
-        // Get notifications
-        $notifications = auth()->user()
-            ->notifications()
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
-
-        $unreadCount = auth()->user()->notifications()->where('is_read', false)->count();
-
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
             'recentTransactions' => $recentTransactions,
@@ -101,10 +92,6 @@ class AdminController extends Controller
             'recentOrders' => $recentOrders,
             'pendingKyc' => $pendingKyc,
             'systemHealth' => $systemHealth,
-            'notifications' => [
-                'data' => $notifications,
-                'unread_count' => $unreadCount,
-            ],
         ]);
     }
 

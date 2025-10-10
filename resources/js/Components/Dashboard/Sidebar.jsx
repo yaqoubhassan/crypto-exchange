@@ -48,7 +48,7 @@ export default function Sidebar({ currentRoute }) {
   ];
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 pt-16 hidden lg:block">
+    <aside className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 pt-16 hidden lg:block">
       <div className="h-full px-3 py-4 overflow-y-auto">
         <ul className="space-y-2">
           {navigation.map((item) => (
