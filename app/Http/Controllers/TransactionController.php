@@ -78,18 +78,35 @@ class TransactionController extends Controller
             ],
         ]);
     }
-    
+
     public function show($id)
     {
         $user = auth()->user();
         
         // Get transaction with all related data
         $transaction = $user->transactions()
-            ->with(['cryptocurrency', 'order'])
+            ->with('cryptocurrency')
             ->findOrFail($id);
+        
+        // Get related wallet for this cryptocurrency
+        $wallet = $user->wallets()
+            ->where('cryptocurrency_id', $transaction->cryptocurrency_id)
+            ->with('cryptocurrency')
+            ->first();
+        
+        // Get recent transactions for the same cryptocurrency
+        $relatedTransactions = $user->transactions()
+            ->where('cryptocurrency_id', $transaction->cryptocurrency_id)
+            ->where('id', '!=', $transaction->id)
+            ->with('cryptocurrency')
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
         
         return Inertia::render('Transactions/Show', [
             'transaction' => $transaction,
+            'wallet' => $wallet,
+            'relatedTransactions' => $relatedTransactions,
         ]);
     }
     

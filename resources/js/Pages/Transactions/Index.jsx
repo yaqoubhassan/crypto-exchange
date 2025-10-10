@@ -29,6 +29,10 @@ export default function TransactionsIndex({ transactions, stats, filters }) {
     });
   };
 
+  const handleRowClick = (transactionId) => {
+    router.visit(`/transactions/${transactionId}`);
+  };
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -126,46 +130,36 @@ export default function TransactionsIndex({ transactions, stats, filters }) {
         </div>
       </div>
 
-      {/* Search and Filter Section */}
-      <div className="bg-white rounded-lg shadow-sm mb-6 border border-gray-200">
-        <div className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search Input */}
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && applyFilters()}
-                  placeholder="Search by transaction ID, amount, or currency..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-400">🔍</span>
-                </div>
-              </div>
+              <input
+                type="text"
+                placeholder="Search transactions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
-
-            {/* Filter Toggle Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-            >
-              <span>🎚️</span>
-              <span>Filters</span>
-            </button>
-
-            {/* Search Button */}
-            <button
-              onClick={applyFilters}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-            >
-              Search
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={applyFilters}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+            </div>
           </div>
 
-          {/* Collapsible Filters */}
+          {/* Advanced Filters */}
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
               <div>
@@ -242,39 +236,47 @@ export default function TransactionsIndex({ transactions, stats, filters }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {transactions.data && transactions.data.length > 0 ? (
                 transactions.data.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={transaction.id}
+                    onClick={() => handleRowClick(transaction.id)}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="text-2xl mr-2">{getTypeIcon(transaction.type)}</span>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            #{transaction.transaction_id}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {transaction.notes || 'No notes'}
-                          </div>
-                        </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {transaction.transaction_id.substring(0, 16)}...
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        ID: {transaction.id}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTypeBadge(transaction.type)}`}>
+                        <span className="mr-1">{getTypeIcon(transaction.type)}</span>
                         {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className="text-sm font-medium text-gray-900">
-                          {transaction.cryptocurrency?.symbol || 'N/A'}
-                        </span>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {transaction.cryptocurrency?.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {transaction.cryptocurrency?.symbol}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm font-semibold ${['deposit', 'buy'].includes(transaction.type)
+                      <div className={`text-sm font-medium ${['deposit', 'buy'].includes(transaction.type)
                         ? 'text-green-600'
                         : 'text-red-600'
                         }`}>
@@ -296,11 +298,22 @@ export default function TransactionsIndex({ transactions, stats, filters }) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(transaction.created_at)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRowClick(transaction.id);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-900"
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
+                  <td colSpan="8" className="px-6 py-12 text-center">
                     <div className="text-4xl mb-2">📋</div>
                     <p className="text-gray-500">No transactions found</p>
                     <p className="text-sm text-gray-400 mt-1">
@@ -345,68 +358,59 @@ export default function TransactionsIndex({ transactions, stats, filters }) {
       <div className="lg:hidden space-y-4">
         {transactions.data && transactions.data.length > 0 ? (
           transactions.data.map((transaction) => (
-            <div key={transaction.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div
+              key={transaction.id}
+              onClick={() => handleRowClick(transaction.id)}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center flex-1">
-                  <span className="text-3xl mr-3">{getTypeIcon(transaction.type)}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                      #{transaction.transaction_id}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      {formatDate(transaction.created_at)}
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTypeBadge(transaction.type)}`}>
+                      <span className="mr-1">{getTypeIcon(transaction.type)}</span>
+                      {transaction.type}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(transaction.status)}`}>
+                      {transaction.status}
+                    </span>
                   </div>
-                </div>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(transaction.status)} flex-shrink-0 ml-2`}>
-                  {transaction.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Type</p>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getTypeBadge(transaction.type)}`}>
-                    {transaction.type}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Currency</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {transaction.cryptocurrency?.symbol || 'N/A'}
-                  </p>
+                  <div className="text-xs text-gray-500 truncate">
+                    {transaction.transaction_id}
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500">Amount</p>
-                    <p className={`text-lg font-bold ${['deposit', 'buy'].includes(transaction.type)
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                      }`}>
-                      {['deposit', 'buy'].includes(transaction.type) ? '+' : '-'}
-                      {parseFloat(transaction.amount).toFixed(8)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Value</p>
-                    <p className="text-sm font-medium text-gray-900">
-                      ≈ ${(transaction.amount * (transaction.cryptocurrency?.current_price || 0)).toFixed(2)}
-                    </p>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Currency</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {transaction.cryptocurrency?.symbol}
                   </div>
                 </div>
-                {transaction.fee > 0 && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    Fee: {parseFloat(transaction.fee).toFixed(8)} {transaction.cryptocurrency?.symbol}
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">Amount</div>
+                  <div className={`text-sm font-medium ${['deposit', 'buy'].includes(transaction.type)
+                    ? 'text-green-600'
+                    : 'text-red-600'
+                    }`}>
+                    {['deposit', 'buy'].includes(transaction.type) ? '+' : '-'}
+                    {parseFloat(transaction.amount).toFixed(8)}
                   </div>
-                )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <div className="text-xs text-gray-500">
+                  {formatDate(transaction.created_at)}
+                </div>
+                <button className="text-xs text-indigo-600 font-medium">
+                  View Details →
+                </button>
               </div>
             </div>
           ))
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="text-4xl mb-2">📋</div>
             <p className="text-gray-500">No transactions found</p>
             <p className="text-sm text-gray-400 mt-1">
@@ -417,20 +421,22 @@ export default function TransactionsIndex({ transactions, stats, filters }) {
 
         {/* Mobile Pagination */}
         {transactions.links && transactions.links.length > 3 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-sm text-gray-700 text-center mb-3">
-              Showing {transactions.from || 0} to {transactions.to || 0} of {transactions.total || 0}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs text-gray-700">
+                {transactions.from || 0}-{transactions.to || 0} of {transactions.total || 0}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2 justify-center">
+            <div className="flex gap-2 flex-wrap">
               {transactions.links.map((link, index) => (
                 <button
                   key={index}
                   onClick={() => link.url && router.get(link.url)}
                   disabled={!link.url || link.active}
-                  className={`px-3 py-1 rounded-md text-sm ${link.active
+                  className={`px-3 py-1 rounded-md text-xs ${link.active
                     ? 'bg-indigo-600 text-white'
                     : link.url
-                      ? 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                      ? 'bg-white text-gray-700 border border-gray-300'
                       : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
                   dangerouslySetInnerHTML={{ __html: link.label }}

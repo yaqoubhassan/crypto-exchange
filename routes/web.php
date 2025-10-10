@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
     
     // Transaction routes
     Route::get('/transactions', [App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
+    Route::get('/transactions/{id}', [App\Http\Controllers\TransactionController::class, 'show'])->name('transactions.show');
 
     // Order routes (Add these to the authenticated middleware group in web.php)
     Route::get('/orders', [App\Http\Controllers\OrderController::class, 'index'])->name('orders.index');
@@ -74,6 +75,7 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
         
         // Transaction management
         Route::get('/transactions', [App\Http\Controllers\Admin\AdminController::class, 'transactions'])->name('transactions');
+        Route::get('/transactions/{id}', [App\Http\Controllers\Admin\AdminController::class, 'showTransaction'])->name('transactions.show');
         Route::post('/transactions/{id}/approve', [App\Http\Controllers\Admin\AdminController::class, 'approveTransaction'])->name('transactions.approve');
         Route::post('/transactions/{id}/reject', [App\Http\Controllers\Admin\AdminController::class, 'rejectTransaction'])->name('transactions.reject');
         

@@ -12,7 +12,12 @@ export default function AdminTransactions({ transactions, stats, filters }) {
     const [filterStatus, setFilterStatus] = useState(filters?.status || 'all');
     const [filterType, setFilterType] = useState(filters?.type || 'all');
 
-    const openApproveModal = (transaction) => {
+    const handleRowClick = (transactionId) => {
+        router.visit(`/admin/transactions/${transactionId}`);
+    };
+
+    const openApproveModal = (transaction, e) => {
+        e.stopPropagation(); // Prevent row click
         setSelectedTransaction(transaction);
         setShowApproveModal(true);
     };
@@ -29,7 +34,8 @@ export default function AdminTransactions({ transactions, stats, filters }) {
         });
     };
 
-    const openRejectModal = (transaction) => {
+    const openRejectModal = (transaction, e) => {
+        e.stopPropagation(); // Prevent row click
         setSelectedTransaction(transaction);
         setRejectReason('');
         setShowRejectModal(true);
@@ -87,21 +93,20 @@ export default function AdminTransactions({ transactions, stats, filters }) {
     };
 
     return (
-        <AdminLayout title="Transaction Management">
-            {/* Page Header */}
+        <AdminLayout>
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Transaction Management</h1>
                 <p className="mt-1 text-sm text-gray-600">
-                    Review and manage all platform transactions
+                    Monitor and manage all platform transactions
                 </p>
             </div>
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-medium text-gray-600">Total Transactions</p>
+                            <p className="text-sm font-medium text-gray-600">Total</p>
                             <p className="text-2xl font-bold text-gray-900 mt-2">{stats.total}</p>
                         </div>
                         <div className="text-4xl">💳</div>
@@ -110,7 +115,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                 <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-medium text-gray-600">Pending Approval</p>
+                            <p className="text-sm font-medium text-gray-600">Pending</p>
                             <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
                         </div>
                         <div className="text-4xl">⏳</div>
@@ -128,7 +133,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                 <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-medium text-gray-600">Failed/Rejected</p>
+                            <p className="text-sm font-medium text-gray-600">Failed</p>
                             <p className="text-2xl font-bold text-red-600 mt-2">{stats.failed}</p>
                         </div>
                         <div className="text-4xl">❌</div>
@@ -137,7 +142,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -221,9 +226,13 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {transactions.data && transactions.data.length > 0 ? (
                                 transactions.data.map((transaction) => (
-                                    <tr key={transaction.id} className="hover:bg-gray-50">
+                                    <tr
+                                        key={transaction.id}
+                                        onClick={() => handleRowClick(transaction.id)}
+                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                                            {transaction.transaction_id}
+                                            {transaction.transaction_id.substring(0, 16)}...
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">
@@ -255,26 +264,33 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {new Date(transaction.created_at).toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            {transaction.status === 'pending' ? (
-                                                <div className="flex space-x-2">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRowClick(transaction.id);
+                                                }}
+                                                className="text-indigo-600 hover:text-indigo-900 font-medium"
+                                            >
+                                                View
+                                            </button>
+                                            {transaction.status === 'pending' && (
+                                                <>
                                                     <button
-                                                        onClick={() => openApproveModal(transaction)}
+                                                        onClick={(e) => openApproveModal(transaction, e)}
                                                         disabled={processing === transaction.id}
-                                                        className="bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors"
+                                                        className="text-green-600 hover:text-green-900 font-medium disabled:opacity-50"
                                                     >
                                                         Approve
                                                     </button>
                                                     <button
-                                                        onClick={() => openRejectModal(transaction)}
+                                                        onClick={(e) => openRejectModal(transaction, e)}
                                                         disabled={processing === transaction.id}
-                                                        className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors"
+                                                        className="text-red-600 hover:text-red-900 font-medium disabled:opacity-50"
                                                     >
                                                         Reject
                                                     </button>
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-400">No actions</span>
+                                                </>
                                             )}
                                         </td>
                                     </tr>
@@ -360,60 +376,39 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                             </div>
                         </div>
 
-                        {/* Transaction Details */}
                         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                             <div className="text-xs text-gray-600 space-y-1">
-                                <div><span className="font-medium">Transaction ID:</span> <span className="font-mono">{selectedTransaction?.transaction_id}</span></div>
+                                <div><span className="font-medium">Transaction ID:</span> {selectedTransaction?.transaction_id}</div>
                                 <div><span className="font-medium">User:</span> {selectedTransaction?.user?.name}</div>
-                                <div><span className="font-medium">Email:</span> {selectedTransaction?.user?.email}</div>
-                                <div><span className="font-medium">Type:</span> <span className="capitalize">{selectedTransaction?.type}</span></div>
                                 <div><span className="font-medium">Amount:</span> {parseFloat(selectedTransaction?.amount || 0).toFixed(8)} {selectedTransaction?.cryptocurrency?.symbol}</div>
                             </div>
                         </div>
 
-                        {/* Rejection Reason */}
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Reason for Rejection <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                                rows="4"
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                                placeholder="Please provide a detailed reason for rejecting this transaction (e.g., suspicious activity, insufficient documentation, etc.)"
-                                required
-                            />
-                            {!rejectReason.trim() && (
-                                <p className="mt-1 text-xs text-red-600">Rejection reason is required</p>
-                            )}
-                        </div>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter rejection reason..."
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
+                            rows="4"
+                        />
 
-                        {/* Action Buttons */}
                         <div className="flex space-x-3">
                             <button
                                 onClick={() => {
                                     setShowRejectModal(false);
                                     setRejectReason('');
                                 }}
-                                disabled={processing === selectedTransaction?.id}
-                                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                disabled={processing}
+                                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleReject}
-                                disabled={processing === selectedTransaction?.id || !rejectReason.trim()}
-                                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                disabled={processing || !rejectReason.trim()}
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
                             >
-                                {processing === selectedTransaction?.id ? (
-                                    <div className="flex items-center justify-center">
-                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                    </div>
-                                ) : 'Reject Transaction'}
+                                {processing ? 'Rejecting...' : 'Reject Transaction'}
                             </button>
                         </div>
                     </div>

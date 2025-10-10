@@ -140,7 +140,7 @@ class AdminController extends Controller
         ]);
     }
 
-      public function transactions(Request $request)
+    public function transactions(Request $request)
     {
         $query = \App\Models\Transaction::with(['user', 'cryptocurrency']);
 
@@ -172,6 +172,65 @@ class AdminController extends Controller
                 'status' => $request->status ?? 'all',
                 'type' => $request->type ?? 'all',
             ],
+        ]);
+    }
+
+    public function showTransaction($id)
+    {
+        $transaction = \App\Models\Transaction::with(['user', 'cryptocurrency'])
+            ->findOrFail($id);
+        
+        // Get user's wallet for this cryptocurrency
+        $wallet = $transaction->user->wallets()
+            ->where('cryptocurrency_id', $transaction->cryptocurrency_id)
+            ->with('cryptocurrency')
+            ->first();
+        
+        // Get user's recent transactions
+        $userTransactions = \App\Models\Transaction::where('user_id', $transaction->user_id)
+            ->with('cryptocurrency')
+            ->where('id', '!=', $transaction->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+        
+        // Get all transactions for this cryptocurrency (for context)
+        $relatedTransactions = \App\Models\Transaction::where('cryptocurrency_id', $transaction->cryptocurrency_id)
+            ->with(['user', 'cryptocurrency'])
+            ->where('id', '!=', $transaction->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+        
+        // Get user's KYC status
+        $kycStatus = \App\Models\UserKyc::where('user_id', $transaction->user_id)
+            ->latest()
+            ->first();
+        
+        // Get user statistics
+        $userStats = [
+            'total_transactions' => \App\Models\Transaction::where('user_id', $transaction->user_id)->count(),
+            'completed_transactions' => \App\Models\Transaction::where('user_id', $transaction->user_id)
+                ->where('status', 'completed')->count(),
+            'pending_transactions' => \App\Models\Transaction::where('user_id', $transaction->user_id)
+                ->where('status', 'pending')->count(),
+            'total_volume' => \App\Models\Transaction::where('user_id', $transaction->user_id)
+                ->where('status', 'completed')
+                ->sum(\DB::raw('amount * COALESCE(price, 0)')),
+            'account_age_days' => now()->diffInDays($transaction->user->created_at),
+        ];
+        
+        // Get common stats for header
+        $commonStats = $this->getCommonStats();
+        
+        return Inertia::render('Admin/Transactions/Show', [
+            'transaction' => $transaction,
+            'wallet' => $wallet,
+            'userTransactions' => $userTransactions,
+            'relatedTransactions' => $relatedTransactions,
+            'kycStatus' => $kycStatus,
+            'userStats' => $userStats,
+            'stats' => $commonStats,
         ]);
     }
 
