@@ -161,7 +161,7 @@ class TradingController extends Controller
                 $this->processMarketOrder($order);
             }
 
-            // Create notification
+            // Create notification for user
             \App\Models\Notification::create([
                 'user_id' => $user->id,
                 'type' => 'order_placed',
@@ -173,6 +173,9 @@ class TradingController extends Controller
                     'side' => $order->side,
                 ]),
             ]);
+
+            // Notify ALL admins about the new order
+            $this->notifyAdminsAboutOrder($order, $user);
 
             DB::commit();
 
@@ -187,7 +190,7 @@ class TradingController extends Controller
             Log::error('Order placement failed: ' . $e->getMessage());
             
             return response()->json([
-                'error' => 'Failed to place order. Please try again.'
+                'error' => 'Failed to place order: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -240,7 +243,7 @@ class TradingController extends Controller
 
             $remainingQuantity -= $fillQuantity;
 
-            // Create transaction records
+            // Create transaction records and notify admins
             $this->createTradeTransaction($order, $matchOrder, $fillQuantity, $fillPrice);
         }
 
@@ -262,7 +265,6 @@ class TradingController extends Controller
             $order->status = 'partial';
         } else {
             // No matches found, order stays pending
-            // For market orders with no matches, we might want to cancel or convert to limit
             $order->status = 'pending';
         }
 
@@ -280,7 +282,7 @@ class TradingController extends Controller
         $actualSellOrder = $buyOrder->side === 'sell' ? $buyOrder : $sellOrder;
 
         // Create transaction for buyer
-        \App\Models\Transaction::create([
+        $buyerTransaction = \App\Models\Transaction::create([
             'transaction_id' => 'TXN-' . strtoupper(uniqid()),
             'user_id' => $actualBuyOrder->user_id,
             'cryptocurrency_id' => $actualBuyOrder->base_currency_id,
@@ -294,7 +296,7 @@ class TradingController extends Controller
         ]);
 
         // Create transaction for seller
-        \App\Models\Transaction::create([
+        $sellerTransaction = \App\Models\Transaction::create([
             'transaction_id' => 'TXN-' . strtoupper(uniqid()),
             'user_id' => $actualSellOrder->user_id,
             'cryptocurrency_id' => $actualSellOrder->base_currency_id,
@@ -307,54 +309,107 @@ class TradingController extends Controller
             'processed_at' => now(),
         ]);
 
-        // Update wallets
-        $this->updateWalletsAfterTrade($actualBuyOrder, $actualSellOrder, $quantity, $price);
+        // Update wallet balances
+        $this->updateWalletsForTrade($actualBuyOrder, $actualSellOrder, $quantity, $price);
+
+        // Notify admins about the completed trade
+        $this->notifyAdminsAboutTrade($buyerTransaction, $sellerTransaction, $quantity, $price);
     }
 
-    private function updateWalletsAfterTrade($buyOrder, $sellOrder, $quantity, $price)
+    private function updateWalletsForTrade($buyOrder, $sellOrder, $quantity, $price)
     {
-        $fee = 0.001; // 0.1% trading fee
+        $totalCost = $quantity * $price;
         
-        // Update buyer's wallets
-        $buyerBaseWallet = \App\Models\Wallet::where('user_id', $buyOrder->user_id)
-            ->where('cryptocurrency_id', $buyOrder->base_currency_id)
-            ->first();
-        $buyerQuoteWallet = \App\Models\Wallet::where('user_id', $buyOrder->user_id)
+        // Buyer's wallets
+        $buyerQuoteWallet = $buyOrder->user->wallets()
             ->where('cryptocurrency_id', $buyOrder->quote_currency_id)
             ->first();
+        $buyerBaseWallet = $buyOrder->user->wallets()
+            ->where('cryptocurrency_id', $buyOrder->base_currency_id)
+            ->first();
 
-        if ($buyerBaseWallet) {
-            // Add crypto to buyer (minus fee)
-            $netQuantity = $quantity * (1 - $fee);
-            $buyerBaseWallet->addBalance($netQuantity);
-        }
-        
-        if ($buyerQuoteWallet) {
-            // Release locked USD
-            $totalCost = $quantity * $price;
-            $buyerQuoteWallet->locked_balance -= $totalCost;
-            $buyerQuoteWallet->save();
-        }
-
-        // Update seller's wallets
-        $sellerBaseWallet = \App\Models\Wallet::where('user_id', $sellOrder->user_id)
+        // Seller's wallets
+        $sellerBaseWallet = $sellOrder->user->wallets()
             ->where('cryptocurrency_id', $sellOrder->base_currency_id)
             ->first();
-        $sellerQuoteWallet = \App\Models\Wallet::where('user_id', $sellOrder->user_id)
+        $sellerQuoteWallet = $sellOrder->user->wallets()
             ->where('cryptocurrency_id', $sellOrder->quote_currency_id)
             ->first();
 
-        if ($sellerBaseWallet) {
-            // Release locked crypto
-            $sellerBaseWallet->locked_balance -= $quantity;
-            $sellerBaseWallet->save();
+        // Buyer: Unlock and deduct USD, add crypto
+        if ($buyerQuoteWallet) {
+            $buyerQuoteWallet->unlockAndDeduct($totalCost);
         }
-        
+        if ($buyerBaseWallet) {
+            $buyerBaseWallet->addBalance($quantity);
+        }
+
+        // Seller: Unlock and deduct crypto, add USD
+        if ($sellerBaseWallet) {
+            $sellerBaseWallet->unlockAndDeduct($quantity);
+        }
         if ($sellerQuoteWallet) {
-            // Add USD to seller (minus fee)
-            $totalRevenue = $quantity * $price;
-            $netRevenue = $totalRevenue * (1 - $fee);
-            $sellerQuoteWallet->addBalance($netRevenue);
+            $sellerQuoteWallet->addBalance($totalCost);
+        }
+    }
+
+    /**
+     * Notify all admins about a new order placement
+     */
+    private function notifyAdminsAboutOrder($order, $user)
+    {
+        $admins = \App\Models\User::where('is_admin', true)->get();
+        
+        foreach ($admins as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'admin_order_alert',
+                'title' => '🔔 New Order Placed',
+                'message' => "{$user->name} placed a {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} at " . 
+                            ($order->type === 'market' ? 'market price' : '$' . number_format($order->price, 2)),
+                'data' => json_encode([
+                    'order_id' => $order->order_id,
+                    'user_id' => $user->id,
+                    'user_name' => $user->name,
+                    'type' => $order->type,
+                    'side' => $order->side,
+                    'quantity' => $order->quantity,
+                    'price' => $order->price,
+                ]),
+            ]);
+        }
+    }
+
+    /**
+     * Notify all admins about a completed trade
+     */
+    private function notifyAdminsAboutTrade($buyerTransaction, $sellerTransaction, $quantity, $price)
+    {
+        $admins = \App\Models\User::where('is_admin', true)->get();
+        
+        $buyer = \App\Models\User::find($buyerTransaction->user_id);
+        $seller = \App\Models\User::find($sellerTransaction->user_id);
+        $crypto = \App\Models\Cryptocurrency::find($buyerTransaction->cryptocurrency_id);
+        
+        $totalValue = $quantity * $price;
+        
+        foreach ($admins as $admin) {
+            \App\Models\Notification::create([
+                'user_id' => $admin->id,
+                'type' => 'admin_trade_alert',
+                'title' => '✅ Trade Executed',
+                'message' => "Trade completed: {$buyer->name} bought {$quantity} {$crypto->symbol} from {$seller->name} at \${$price} (Total: \${$totalValue})",
+                'data' => json_encode([
+                    'buyer_transaction_id' => $buyerTransaction->transaction_id,
+                    'seller_transaction_id' => $sellerTransaction->transaction_id,
+                    'buyer_name' => $buyer->name,
+                    'seller_name' => $seller->name,
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'total_value' => $totalValue,
+                    'cryptocurrency' => $crypto->symbol,
+                ]),
+            ]);
         }
     }
 }

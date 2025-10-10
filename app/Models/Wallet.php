@@ -47,6 +47,10 @@ class Wallet extends Model
         return $this->balance;
     }
 
+    /**
+     * Lock balance - move from available to locked
+     * Used when placing orders
+     */
     public function lockBalance($amount)
     {
         if ($this->balance >= $amount) {
@@ -57,6 +61,10 @@ class Wallet extends Model
         return false;
     }
 
+    /**
+     * Unlock balance - move from locked back to available
+     * Used when canceling orders or rejecting withdrawals
+     */
     public function unlockBalance($amount)
     {
         if ($this->locked_balance >= $amount) {
@@ -67,6 +75,24 @@ class Wallet extends Model
         return false;
     }
 
+    /**
+     * Unlock and deduct - remove from locked balance without adding to available
+     * Used when completing trades (funds go to other party)
+     * Also used when processing approved withdrawals
+     */
+    public function unlockAndDeduct($amount)
+    {
+        if ($this->locked_balance >= $amount) {
+            $this->locked_balance -= $amount;
+            return $this->save();
+        }
+        return false;
+    }
+
+    /**
+     * Deduct from available balance
+     * Used for direct deductions (fees, etc.)
+     */
     public function deductBalance($amount)
     {
         if ($this->balance >= $amount) {
@@ -76,6 +102,10 @@ class Wallet extends Model
         return false;
     }
 
+    /**
+     * Add to available balance
+     * Used for deposits, trade settlements, refunds
+     */
     public function addBalance($amount)
     {
         $this->balance += $amount;
