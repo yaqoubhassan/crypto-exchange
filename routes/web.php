@@ -24,17 +24,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    
+
     // Trading routes
     Route::get('/trading', [App\Http\Controllers\TradingController::class, 'index'])->name('trading.index');
     Route::get('/api/market/{symbol}', [App\Http\Controllers\TradingController::class, 'getMarketData'])->name('trading.market');
     Route::post('/api/orders', [App\Http\Controllers\TradingController::class, 'placeOrder'])->name('trading.order');
-    
+
     // Wallet routes
     Route::get('/wallet', [App\Http\Controllers\WalletController::class, 'index'])->name('wallet.index');
     Route::post('/wallet/deposit', [App\Http\Controllers\WalletController::class, 'deposit'])->name('wallet.deposit');
     Route::post('/wallet/withdraw', [App\Http\Controllers\WalletController::class, 'withdraw'])->name('wallet.withdraw');
-    
+
     // Transaction routes
     Route::get('/transactions', [App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
     Route::get('/transactions/{id}', [App\Http\Controllers\TransactionController::class, 'show'])->name('transactions.show');
@@ -47,12 +47,12 @@ Route::middleware('auth')->group(function () {
 
     //Notifications routes
     Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])
-    ->name('notifications.index');
+        ->name('notifications.index');
     Route::post('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])
         ->name('notifications.read');
     Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])
         ->name('notifications.mark-all-read');
-    
+
     // Security routes
     Route::get('/security', function () {
         return Inertia::render('Security/Index', [
@@ -68,30 +68,34 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
     ->group(function () {
         // Dashboard
         Route::get('/dashboard', [App\Http\Controllers\Admin\AdminController::class, 'dashboard'])->name('dashboard');
-        
+
         // User management
         Route::get('/users', [App\Http\Controllers\Admin\AdminController::class, 'users'])->name('users');
         Route::post('/users/{id}/toggle-status', [App\Http\Controllers\Admin\AdminController::class, 'toggleUserStatus'])->name('users.toggle-status');
-        
+
         // Transaction management
         Route::get('/transactions', [App\Http\Controllers\Admin\AdminController::class, 'transactions'])->name('transactions');
         Route::get('/transactions/{id}', [App\Http\Controllers\Admin\AdminController::class, 'showTransaction'])->name('transactions.show');
         Route::post('/transactions/{id}/approve', [App\Http\Controllers\Admin\AdminController::class, 'approveTransaction'])->name('transactions.approve');
         Route::post('/transactions/{id}/reject', [App\Http\Controllers\Admin\AdminController::class, 'rejectTransaction'])->name('transactions.reject');
-        
-        // Order management
-        Route::get('/orders', [App\Http\Controllers\Admin\AdminController::class, 'orders'])->name('orders');
-        
+
+        // Orders Management
+        Route::get('/orders', [App\Http\Controllers\Admin\OrderController::class, 'orders'])->name('orders');
+        Route::post('/orders/{id}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateOrderStatus'])->name('orders.status');
+        Route::post('/orders/{id}/approve', [App\Http\Controllers\Admin\OrderController::class, 'approveOrder'])->name('orders.approve');
+        Route::post('/orders/{id}/reject', [App\Http\Controllers\Admin\OrderController::class, 'rejectOrder'])->name('orders.reject');
+        Route::get('/orders/export', [App\Http\Controllers\Admin\OrderController::class, 'exportOrders'])->name('orders.export');
+
         // KYC management
         Route::get('/kyc', [App\Http\Controllers\Admin\AdminController::class, 'kyc'])->name('kyc');
         Route::post('/kyc/{id}/approve', [App\Http\Controllers\Admin\AdminController::class, 'approveKyc'])->name('kyc.approve');
         Route::post('/kyc/{id}/reject', [App\Http\Controllers\Admin\AdminController::class, 'rejectKyc'])->name('kyc.reject');
-        
+
         // Cryptocurrency management (for future use)
         Route::get('/cryptocurrencies', [App\Http\Controllers\Admin\AdminController::class, 'cryptocurrencies'])->name('cryptocurrencies');
-        
+
         // Reports (for future use)
         Route::get('/reports', [App\Http\Controllers\Admin\AdminController::class, 'reports'])->name('reports');
     });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

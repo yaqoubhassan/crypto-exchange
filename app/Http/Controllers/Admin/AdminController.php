@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class AdminController extends Controller
 {
-     public function dashboard()
+    public function dashboard()
     {
         // Get current statistics
         $stats = [
@@ -91,10 +92,7 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
-        $unreadCount = auth()->user()
-            ->notifications()
-            ->where('is_read', false)
-            ->count();
+        $unreadCount = auth()->user()->notifications()->where('is_read', false)->count();
 
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
@@ -118,9 +116,9 @@ class AdminController extends Controller
         // Apply filters
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -179,13 +177,13 @@ class AdminController extends Controller
     {
         $transaction = \App\Models\Transaction::with(['user', 'cryptocurrency'])
             ->findOrFail($id);
-        
+
         // Get user's wallet for this cryptocurrency
         $wallet = $transaction->user->wallets()
             ->where('cryptocurrency_id', $transaction->cryptocurrency_id)
             ->with('cryptocurrency')
             ->first();
-        
+
         // Get user's recent transactions
         $userTransactions = \App\Models\Transaction::where('user_id', $transaction->user_id)
             ->with('cryptocurrency')
@@ -193,7 +191,7 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-        
+
         // Get all transactions for this cryptocurrency (for context)
         $relatedTransactions = \App\Models\Transaction::where('cryptocurrency_id', $transaction->cryptocurrency_id)
             ->with(['user', 'cryptocurrency'])
@@ -201,12 +199,12 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
-        
+
         // Get user's KYC status
         $kycStatus = \App\Models\UserKyc::where('user_id', $transaction->user_id)
             ->latest()
             ->first();
-        
+
         // Get user statistics
         $userStats = [
             'total_transactions' => \App\Models\Transaction::where('user_id', $transaction->user_id)->count(),
@@ -219,10 +217,10 @@ class AdminController extends Controller
                 ->sum(\DB::raw('amount * COALESCE(price, 0)')),
             'account_age_days' => now()->diffInDays($transaction->user->created_at),
         ];
-        
+
         // Get common stats for header
         $commonStats = $this->getCommonStats();
-        
+
         return Inertia::render('Admin/Transactions/Show', [
             'transaction' => $transaction,
             'wallet' => $wallet,
@@ -231,27 +229,6 @@ class AdminController extends Controller
             'kycStatus' => $kycStatus,
             'userStats' => $userStats,
             'stats' => $commonStats,
-        ]);
-    }
-
-    public function orders(Request $request)
-    {
-        $query = \App\Models\Order::with(['user', 'baseCurrency', 'quoteCurrency']);
-
-        // Apply filters
-        if ($request->has('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('type') && $request->type !== 'all') {
-            $query->where('type', $request->type);
-        }
-
-        $orders = $query->orderBy('created_at', 'desc')->paginate(20);
-
-        return Inertia::render('Admin/Orders', [
-            'orders' => $orders,
-            'filters' => $request->only(['status', 'type']),
         ]);
     }
 
@@ -275,7 +252,7 @@ class AdminController extends Controller
     public function approveTransaction(Request $request, $id)
     {
         $transaction = \App\Models\Transaction::findOrFail($id);
-        
+
         if ($transaction->status !== 'pending') {
             return back()->withErrors(['error' => 'Only pending transactions can be approved']);
         }
@@ -318,7 +295,7 @@ class AdminController extends Controller
         ]);
 
         $transaction = \App\Models\Transaction::findOrFail($id);
-        
+
         if ($transaction->status !== 'pending') {
             return back()->withErrors(['error' => 'Only pending transactions can be rejected']);
         }
@@ -355,7 +332,7 @@ class AdminController extends Controller
     public function approveKyc(Request $request, $id)
     {
         $kyc = \App\Models\UserKyc::findOrFail($id);
-        
+
         if ($kyc->verification_status !== 'pending') {
             return response()->json(['error' => 'KYC is not pending'], 400);
         }
@@ -379,7 +356,7 @@ class AdminController extends Controller
         ]);
 
         $kyc = \App\Models\UserKyc::findOrFail($id);
-        
+
         if ($kyc->verification_status !== 'pending') {
             return response()->json(['error' => 'KYC is not pending'], 400);
         }
@@ -399,7 +376,7 @@ class AdminController extends Controller
     public function toggleUserStatus(Request $request, $id)
     {
         $user = \App\Models\User::findOrFail($id);
-        
+
         // Prevent self-deactivation
         if ($user->id === auth()->id()) {
             return response()->json(['error' => 'You cannot change your own status'], 400);
