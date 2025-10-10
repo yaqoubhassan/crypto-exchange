@@ -33,18 +33,6 @@ export default function Sidebar({ currentRoute }) {
       icon: '📋',
       active: currentRoute === 'orders.index'
     },
-    {
-      name: 'Security',
-      href: '/security',
-      icon: '🔒',
-      active: currentRoute === 'security.index'
-    },
-    {
-      name: 'Profile',
-      href: '/profile',
-      icon: '👤',
-      active: currentRoute === 'profile.edit'
-    },
   ];
 
   return (

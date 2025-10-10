@@ -3,24 +3,24 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
-import { Link, useForm, usePage } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 
-export default function UpdateProfileInformation({
+export default function UpdateProfileInformationForm({
     mustVerifyEmail,
     status,
+    user,
     className = '',
 }) {
-    const user = usePage().props.auth.user;
-
-    const { data, setData, patch, errors, processing, recentlySuccessful } =
-        useForm({
-            name: user.name,
-            email: user.email,
-        });
+    const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        bio: user.bio || '',
+        location: user.location || '',
+    });
 
     const submit = (e) => {
         e.preventDefault();
-
         patch(route('profile.update'));
     };
 
@@ -30,16 +30,15 @@ export default function UpdateProfileInformation({
                 <h2 className="text-lg font-medium text-gray-900">
                     Profile Information
                 </h2>
-
                 <p className="mt-1 text-sm text-gray-600">
                     Update your account's profile information and email address.
                 </p>
             </header>
 
             <form onSubmit={submit} className="mt-6 space-y-6">
+                {/* Name */}
                 <div>
                     <InputLabel htmlFor="name" value="Name" />
-
                     <TextInput
                         id="name"
                         className="mt-1 block w-full"
@@ -49,13 +48,12 @@ export default function UpdateProfileInformation({
                         isFocused
                         autoComplete="name"
                     />
-
                     <InputError className="mt-2" message={errors.name} />
                 </div>
 
+                {/* Email */}
                 <div>
                     <InputLabel htmlFor="email" value="Email" />
-
                     <TextInput
                         id="email"
                         type="email"
@@ -65,7 +63,6 @@ export default function UpdateProfileInformation({
                         required
                         autoComplete="username"
                     />
-
                     <InputError className="mt-2" message={errors.email} />
                 </div>
 
@@ -85,15 +82,61 @@ export default function UpdateProfileInformation({
 
                         {status === 'verification-link-sent' && (
                             <div className="mt-2 text-sm font-medium text-green-600">
-                                A new verification link has been sent to your
-                                email address.
+                                A new verification link has been sent to your email address.
                             </div>
                         )}
                     </div>
                 )}
 
+                {/* Phone */}
+                <div>
+                    <InputLabel htmlFor="phone" value="Phone Number (Optional)" />
+                    <TextInput
+                        id="phone"
+                        type="tel"
+                        className="mt-1 block w-full"
+                        value={data.phone}
+                        onChange={(e) => setData('phone', e.target.value)}
+                        autoComplete="tel"
+                        placeholder="+1 (555) 123-4567"
+                    />
+                    <InputError className="mt-2" message={errors.phone} />
+                </div>
+
+                {/* Location */}
+                <div>
+                    <InputLabel htmlFor="location" value="Location (Optional)" />
+                    <TextInput
+                        id="location"
+                        className="mt-1 block w-full"
+                        value={data.location}
+                        onChange={(e) => setData('location', e.target.value)}
+                        placeholder="City, Country"
+                    />
+                    <InputError className="mt-2" message={errors.location} />
+                </div>
+
+                {/* Bio */}
+                <div>
+                    <InputLabel htmlFor="bio" value="Bio (Optional)" />
+                    <textarea
+                        id="bio"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        rows="4"
+                        value={data.bio}
+                        onChange={(e) => setData('bio', e.target.value)}
+                        maxLength="500"
+                        placeholder="Tell us a bit about yourself..."
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                        {data.bio.length}/500 characters
+                    </p>
+                    <InputError className="mt-2" message={errors.bio} />
+                </div>
+
+                {/* Submit Button */}
                 <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                    <PrimaryButton disabled={processing}>Save Changes</PrimaryButton>
 
                     <Transition
                         show={recentlySuccessful}
@@ -102,9 +145,7 @@ export default function UpdateProfileInformation({
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600">
-                            Saved.
-                        </p>
+                        <p className="text-sm text-green-600">Saved successfully!</p>
                     </Transition>
                 </div>
             </form>

@@ -1,39 +1,60 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Head } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
+import UpdateProfilePictureForm from './Partials/UpdateProfilePictureForm';
 
-export default function Edit({ mustVerifyEmail, status }) {
+export default function Edit({ mustVerifyEmail, status, user }) {
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Profile
-                </h2>
-            }
-        >
-            <Head title="Profile" />
+        <DashboardLayout>
+            <Head title="Profile Settings" />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                            className="max-w-xl"
-                        />
+            {/* Page Header */}
+            <div className="mb-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
+                        <p className="mt-1 text-sm text-gray-600">
+                            Manage your account information and preferences
+                        </p>
                     </div>
-
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
-
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
+                    <span className="text-sm text-gray-500">
+                        Member since {new Date(user.created_at).toLocaleDateString()}
+                    </span>
                 </div>
             </div>
-        </AuthenticatedLayout>
+
+            {/* Profile Sections */}
+            <div className="space-y-6">
+                {/* Profile Picture Section */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <UpdateProfilePictureForm
+                        user={user}
+                        className="max-w-xl"
+                    />
+                </div>
+
+                {/* Profile Information Section */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <UpdateProfileInformationForm
+                        mustVerifyEmail={mustVerifyEmail}
+                        status={status}
+                        user={user}
+                        className="max-w-xl"
+                    />
+                </div>
+
+                {/* Password Section */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <UpdatePasswordForm className="max-w-xl" />
+                </div>
+
+                {/* Delete Account Section */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <DeleteUserForm className="max-w-xl" />
+                </div>
+            </div>
+        </DashboardLayout>
     );
 }

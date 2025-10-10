@@ -298,7 +298,7 @@ export default function DashboardHeader({ user }) {
                         Dashboard
                       </Link>
                       <Link
-                        href="/profile"
+                        href="/profile/view"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         Profile Settings
