@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class AdminController extends Controller
@@ -95,36 +94,6 @@ class AdminController extends Controller
         ]);
     }
 
-    public function users(Request $request)
-    {
-        $query = \App\Models\User::with(['kyc'])
-            ->withCount(['transactions', 'orders', 'wallets']);
-
-        // Apply filters
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->has('status')) {
-            if ($request->status === 'active') {
-                $query->where('is_active', true);
-            } elseif ($request->status === 'inactive') {
-                $query->where('is_active', false);
-            }
-        }
-
-        $users = $query->orderBy('created_at', 'desc')->paginate(20);
-
-        return Inertia::render('Admin/Users', [
-            'users' => $users,
-            'filters' => $request->only(['search', 'status']),
-        ]);
-    }
-
     public function transactions(Request $request)
     {
         $query = \App\Models\Transaction::with(['user', 'cryptocurrency']);
@@ -201,7 +170,7 @@ class AdminController extends Controller
                 ->where('status', 'pending')->count(),
             'total_volume' => \App\Models\Transaction::where('user_id', $transaction->user_id)
                 ->where('status', 'completed')
-                ->sum(\DB::raw('amount * COALESCE(price, 0)')),
+                ->sum(DB::raw('amount * COALESCE(price, 0)')),
             'account_age_days' => now()->diffInDays($transaction->user->created_at),
         ];
 
@@ -357,24 +326,6 @@ class AdminController extends Controller
         return response()->json([
             'message' => 'KYC rejected successfully',
             'kyc' => $kyc
-        ]);
-    }
-
-    public function toggleUserStatus(Request $request, $id)
-    {
-        $user = \App\Models\User::findOrFail($id);
-
-        // Prevent self-deactivation
-        if ($user->id === auth()->id()) {
-            return response()->json(['error' => 'You cannot change your own status'], 400);
-        }
-
-        $user->is_active = !$user->is_active;
-        $user->save();
-
-        return response()->json([
-            'message' => $user->is_active ? 'User activated successfully' : 'User deactivated successfully',
-            'is_active' => $user->is_active,
         ]);
     }
 
