@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
-    public function dashboard()
+     public function dashboard()
     {
         // Get current statistics
         $stats = [
@@ -22,7 +22,7 @@ class AdminController extends Controller
             'total_volume_24h' => \App\Models\Transaction::where('created_at', '>=', now()->subDay())
                 ->whereIn('type', ['buy', 'sell'])
                 ->where('status', 'completed')
-                ->sum(DB::raw('amount * price')),
+                ->sum(DB::raw('amount * COALESCE(price, 0)')),
             'pending_kyc' => \App\Models\UserKyc::where('verification_status', 'pending')->count(),
             'total_revenue' => \App\Models\Transaction::where('status', 'completed')
                 ->sum('fee'),
@@ -33,8 +33,7 @@ class AdminController extends Controller
                 ->count(),
             'total_wallets' => \App\Models\Wallet::count(),
             'avg_order_value' => \App\Models\Order::where('status', 'filled')
-                ->avg(DB::raw('quantity * price')),
-            'failed_login_attempts' => 0, // Implement login tracking if needed
+                ->avg(DB::raw('quantity * COALESCE(price, 0)')),
         ];
 
         // Get previous period statistics for trend calculation
@@ -43,13 +42,13 @@ class AdminController extends Controller
             ->where('created_at', '<', now()->subDay())
             ->whereIn('type', ['buy', 'sell'])
             ->where('status', 'completed')
-            ->sum(DB::raw('amount * price'));
+            ->sum(DB::raw('amount * COALESCE(price, 0)'));
         $stats['previous_transactions'] = \App\Models\Transaction::where('created_at', '<', now()->subDay())->count();
         $stats['previous_revenue'] = \App\Models\Transaction::where('created_at', '<', now()->subDay())
             ->where('status', 'completed')
             ->sum('fee');
 
-        // Get recent transactions with relationships
+        // Get recent transactions
         $recentTransactions = \App\Models\Transaction::with(['user', 'cryptocurrency'])
             ->orderBy('created_at', 'desc')
             ->limit(20)
@@ -66,19 +65,18 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
-        // Get pending KYC applications
+        // Get pending KYC
         $pendingKyc = \App\Models\UserKyc::with('user')
             ->where('verification_status', 'pending')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // System health check
+        // System health
         $systemHealth = [
             'status' => 'healthy',
             'message' => 'All systems operational'
         ];
 
-        // Check for issues
         if ($stats['pending_transactions'] > 10) {
             $systemHealth = [
                 'status' => 'warning',
@@ -86,16 +84,17 @@ class AdminController extends Controller
             ];
         }
 
-        // Revenue data for charts (last 7 days)
-        $revenueData = \App\Models\Transaction::where('status', 'completed')
-            ->where('created_at', '>=', now()->subDays(7))
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(fee) as revenue')
-            )
-            ->groupBy('date')
-            ->orderBy('date', 'asc')
+        // Get notifications
+        $notifications = auth()->user()
+            ->notifications()
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
             ->get();
+
+        $unreadCount = auth()->user()
+            ->notifications()
+            ->where('is_read', false)
+            ->count();
 
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
@@ -104,7 +103,10 @@ class AdminController extends Controller
             'recentOrders' => $recentOrders,
             'pendingKyc' => $pendingKyc,
             'systemHealth' => $systemHealth,
-            'revenueData' => $revenueData,
+            'notifications' => [
+                'data' => $notifications,
+                'unread_count' => $unreadCount,
+            ],
         ]);
     }
 
@@ -138,7 +140,7 @@ class AdminController extends Controller
         ]);
     }
 
-    public function transactions(Request $request)
+      public function transactions(Request $request)
     {
         $query = \App\Models\Transaction::with(['user', 'cryptocurrency']);
 
@@ -160,9 +162,12 @@ class AdminController extends Controller
             'failed' => \App\Models\Transaction::whereIn('status', ['failed', 'cancelled'])->count(),
         ];
 
+        // Get common stats for header
+        $commonStats = $this->getCommonStats();
+
         return Inertia::render('Admin/Transactions/Index', [
             'transactions' => $transactions,
-            'stats' => $stats,
+            'stats' => array_merge($commonStats, $stats),
             'filters' => [
                 'status' => $request->status ?? 'all',
                 'type' => $request->type ?? 'all',
@@ -402,5 +407,22 @@ class AdminController extends Controller
             'revenueData' => $revenueData,
             'userActivity' => $userActivity,
         ]);
+    }
+
+    private function getCommonStats()
+    {
+        return [
+            'total_users' => \App\Models\User::count(),
+            'active_users' => \App\Models\User::where('is_active', true)->count(),
+            'total_transactions' => \App\Models\Transaction::count(),
+            'pending_transactions' => \App\Models\Transaction::where('status', 'pending')->count(),
+            'total_orders' => \App\Models\Order::count(),
+            'active_orders' => \App\Models\Order::whereIn('status', ['pending', 'partial'])->count(),
+            'total_volume_24h' => \App\Models\Transaction::where('created_at', '>=', now()->subDay())
+                ->whereIn('type', ['buy', 'sell'])
+                ->where('status', 'completed')
+                ->sum(DB::raw('amount * COALESCE(price, 0)')),
+            'pending_kyc' => \App\Models\UserKyc::where('verification_status', 'pending')->count(),
+        ];
     }
 }

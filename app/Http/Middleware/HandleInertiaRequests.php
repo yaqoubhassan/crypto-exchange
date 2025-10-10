@@ -34,11 +34,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'notifications' => $request->user() 
+            // Lazy load notifications - only fetched when accessed
+            'notifications' => fn () => $request->user() 
                 ? $request->user()->notifications()->orderBy('created_at', 'desc')->limit(10)->get()
                 : [],
-            'unreadCount' => $request->user() 
-                ? $request->user()->unreadNotifications()->count()
+            'unreadCount' => fn () => $request->user() 
+                ? $request->user()->notifications()->where('is_read', false)->count()
                 : 0,
         ];
     }

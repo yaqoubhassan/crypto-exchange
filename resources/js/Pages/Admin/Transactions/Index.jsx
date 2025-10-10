@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
-import DashboardLayout from '@/Layouts/DashboardLayout.jsx';
+import { router } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmModal from '@/Components/ConfirmModal';
 
 export default function AdminTransactions({ transactions, stats, filters }) {
     const [processing, setProcessing] = useState(null);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showApproveModal, setShowApproveModal] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
     const [filterStatus, setFilterStatus] = useState(filters?.status || 'all');
     const [filterType, setFilterType] = useState(filters?.type || 'all');
 
-    const handleApprove = (transactionId) => {
-        if (!confirm('Are you sure you want to approve this transaction?')) return;
+    const openApproveModal = (transaction) => {
+        setSelectedTransaction(transaction);
+        setShowApproveModal(true);
+    };
 
-        setProcessing(transactionId);
-        router.post(`/admin/transactions/${transactionId}/approve`, {}, {
+    const handleApprove = () => {
+        setProcessing(selectedTransaction.id);
+        router.post(`/admin/transactions/${selectedTransaction.id}/approve`, {}, {
+            onSuccess: () => {
+                setShowApproveModal(false);
+                setSelectedTransaction(null);
+            },
             onFinish: () => setProcessing(null),
             preserveScroll: true,
         });
@@ -28,7 +37,6 @@ export default function AdminTransactions({ transactions, stats, filters }) {
 
     const handleReject = () => {
         if (!rejectReason.trim()) {
-            alert('Please provide a reason for rejection');
             return;
         }
 
@@ -79,9 +87,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
     };
 
     return (
-        <DashboardLayout>
-            <Head title="Manage Transactions - Admin" />
-
+        <AdminLayout title="Transaction Management">
             {/* Page Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Transaction Management</h1>
@@ -92,7 +98,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-gray-600">Total Transactions</p>
@@ -101,7 +107,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                         <div className="text-4xl">💳</div>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-gray-600">Pending Approval</p>
@@ -110,7 +116,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                         <div className="text-4xl">⏳</div>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-gray-600">Completed</p>
@@ -119,7 +125,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                         <div className="text-4xl">✅</div>
                     </div>
                 </div>
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-gray-600">Failed/Rejected</p>
@@ -131,7 +137,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border border-gray-200">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -178,7 +184,7 @@ export default function AdminTransactions({ transactions, stats, filters }) {
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -253,16 +259,16 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                                             {transaction.status === 'pending' ? (
                                                 <div className="flex space-x-2">
                                                     <button
-                                                        onClick={() => handleApprove(transaction.id)}
+                                                        onClick={() => openApproveModal(transaction)}
                                                         disabled={processing === transaction.id}
-                                                        className="bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                                        className="bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors"
                                                     >
-                                                        {processing === transaction.id ? '...' : 'Approve'}
+                                                        Approve
                                                     </button>
                                                     <button
                                                         onClick={() => openRejectModal(transaction)}
                                                         disabled={processing === transaction.id}
-                                                        className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                                                        className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium transition-colors"
                                                     >
                                                         Reject
                                                     </button>
@@ -313,46 +319,106 @@ export default function AdminTransactions({ transactions, stats, filters }) {
                 )}
             </div>
 
+            {/* Approve Confirmation Modal */}
+            <ConfirmModal
+                show={showApproveModal}
+                onClose={() => setShowApproveModal(false)}
+                onConfirm={handleApprove}
+                title="Approve Transaction"
+                message={
+                    <>
+                        Are you sure you want to approve this transaction?
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="text-xs text-gray-600 space-y-1">
+                                <div><span className="font-medium">Transaction ID:</span> {selectedTransaction?.transaction_id}</div>
+                                <div><span className="font-medium">User:</span> {selectedTransaction?.user?.name}</div>
+                                <div><span className="font-medium">Type:</span> <span className="capitalize">{selectedTransaction?.type}</span></div>
+                                <div><span className="font-medium">Amount:</span> {parseFloat(selectedTransaction?.amount || 0).toFixed(8)} {selectedTransaction?.cryptocurrency?.symbol}</div>
+                            </div>
+                        </div>
+                    </>
+                }
+                confirmText="Approve Transaction"
+                confirmColor="green"
+                icon="✅"
+                loading={processing === selectedTransaction?.id}
+            />
+
             {/* Reject Modal */}
             {showRejectModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-md w-full p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Reject Transaction</h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Transaction ID: <span className="font-mono font-semibold">{selectedTransaction?.transaction_id}</span>
-                        </p>
+                    <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+                        <div className="flex items-start space-x-4 mb-4">
+                            <div className="flex-shrink-0">
+                                <div className="text-4xl">❌</div>
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-xl font-bold text-gray-900">Reject Transaction</h2>
+                                <p className="text-sm text-gray-600 mt-1">
+                                    This action cannot be undone. Please provide a reason for rejection.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Transaction Details */}
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                            <div className="text-xs text-gray-600 space-y-1">
+                                <div><span className="font-medium">Transaction ID:</span> <span className="font-mono">{selectedTransaction?.transaction_id}</span></div>
+                                <div><span className="font-medium">User:</span> {selectedTransaction?.user?.name}</div>
+                                <div><span className="font-medium">Email:</span> {selectedTransaction?.user?.email}</div>
+                                <div><span className="font-medium">Type:</span> <span className="capitalize">{selectedTransaction?.type}</span></div>
+                                <div><span className="font-medium">Amount:</span> {parseFloat(selectedTransaction?.amount || 0).toFixed(8)} {selectedTransaction?.cryptocurrency?.symbol}</div>
+                            </div>
+                        </div>
+
+                        {/* Rejection Reason */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Reason for Rejection *
+                                Reason for Rejection <span className="text-red-500">*</span>
                             </label>
                             <textarea
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                                 rows="4"
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                placeholder="Please provide a detailed reason for rejecting this transaction..."
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                placeholder="Please provide a detailed reason for rejecting this transaction (e.g., suspicious activity, insufficient documentation, etc.)"
                                 required
                             />
+                            {!rejectReason.trim() && (
+                                <p className="mt-1 text-xs text-red-600">Rejection reason is required</p>
+                            )}
                         </div>
+
+                        {/* Action Buttons */}
                         <div className="flex space-x-3">
                             <button
-                                onClick={() => setShowRejectModal(false)}
-                                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                                onClick={() => {
+                                    setShowRejectModal(false);
+                                    setRejectReason('');
+                                }}
                                 disabled={processing === selectedTransaction?.id}
+                                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleReject}
-                                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50"
                                 disabled={processing === selectedTransaction?.id || !rejectReason.trim()}
+                                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                             >
-                                {processing === selectedTransaction?.id ? 'Processing...' : 'Reject Transaction'}
+                                {processing === selectedTransaction?.id ? (
+                                    <div className="flex items-center justify-center">
+                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    </div>
+                                ) : 'Reject Transaction'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-        </DashboardLayout>
+        </AdminLayout>
     );
 }

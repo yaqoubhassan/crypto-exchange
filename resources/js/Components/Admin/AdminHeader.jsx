@@ -1,17 +1,92 @@
 import React, { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import Dropdown from '@/Components/Dropdown';
 
 export default function AdminHeader({ user, stats, selectedTimeframe, onTimeframeChange, toggleSidebar, isCollapsed, toggleCollapse }) {
+    const { notifications = [], unreadCount = 0 } = usePage().props;
     const [showNotifications, setShowNotifications] = useState(false);
-    const [notifications] = useState([
-        { id: 1, type: 'warning', message: 'High number of pending transactions', time: '5 min ago' },
-        { id: 2, type: 'info', message: 'System backup completed', time: '1 hour ago' },
-        { id: 3, type: 'success', message: 'KYC application approved', time: '2 hours ago' }
-    ]);
 
     const handleLogout = () => {
         router.post(route('logout'));
+    };
+
+    const handleNotificationClick = (notification) => {
+        // Mark as read if not already read
+        if (!notification.is_read) {
+            router.post(`/notifications/${notification.id}/read`, {}, {
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }
+
+        // Navigate to the link if it exists
+        if (notification.link) {
+            router.visit(notification.link);
+        }
+
+        setShowNotifications(false);
+    };
+
+    const handleViewAllNotifications = () => {
+        router.visit('/notifications');
+        setShowNotifications(false);
+    };
+
+    const markAllAsRead = () => {
+        router.post('/notifications/mark-all-read', {}, {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
+
+    const getNotificationIcon = (notification) => {
+        if (notification.icon) return notification.icon;
+
+        // Default icons based on type
+        const icons = {
+            transaction: '💳',
+            order: '📋',
+            kyc: '🔍',
+            system: '⚙️',
+            security: '🔒',
+            user: '👤',
+            warning: '⚠️',
+            success: '✅',
+            info: 'ℹ️',
+        };
+
+        return icons[notification.type] || '📢';
+    };
+
+    const getNotificationColor = (notification) => {
+        if (notification.is_read) return 'bg-gray-500';
+
+        const colors = {
+            transaction: 'bg-blue-500',
+            order: 'bg-purple-500',
+            kyc: 'bg-yellow-500',
+            system: 'bg-gray-500',
+            security: 'bg-red-500',
+            user: 'bg-green-500',
+            warning: 'bg-yellow-500',
+            success: 'bg-green-500',
+            info: 'bg-blue-500',
+        };
+
+        return colors[notification.type] || 'bg-gray-500';
+    };
+
+    const formatTime = (dateString) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+
+        return date.toLocaleDateString();
     };
 
     return (
@@ -84,8 +159,10 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                 </svg>
-                                {notifications.length > 0 && (
-                                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
                                 )}
                             </button>
 
@@ -97,30 +174,69 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                         onClick={() => setShowNotifications(false)}
                                     ></div>
                                     <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-w-[calc(100vw-2rem)]">
-                                        <div className="p-4 border-b border-gray-200">
-                                            <h3 className="font-semibold text-gray-900">Notifications</h3>
+                                        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-semibold text-gray-900">Notifications</h3>
+                                                {unreadCount > 0 && (
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {notifications.length > 0 && (
+                                                <button
+                                                    onClick={markAllAsRead}
+                                                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                                                >
+                                                    Mark all read
+                                                </button>
+                                            )}
                                         </div>
                                         <div className="max-h-96 overflow-y-auto">
-                                            {notifications.map((notif) => (
-                                                <div
-                                                    key={notif.id}
-                                                    className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
-                                                >
-                                                    <div className="flex items-start space-x-3">
-                                                        <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${notif.type === 'warning' ? 'bg-yellow-500' :
-                                                            notif.type === 'success' ? 'bg-green-500' :
-                                                                'bg-blue-500'
-                                                            }`}></div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm text-gray-900">{notif.message}</p>
-                                                            <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+                                            {notifications.length > 0 ? (
+                                                notifications.map((notification) => (
+                                                    <div
+                                                        key={notification.id}
+                                                        onClick={() => handleNotificationClick(notification)}
+                                                        className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.is_read ? 'bg-blue-50' : ''
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-start space-x-3">
+                                                            <div className="flex-shrink-0 text-2xl">
+                                                                {getNotificationIcon(notification)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between">
+                                                                    <p className={`text-sm font-medium ${notification.is_read ? 'text-gray-700' : 'text-gray-900'
+                                                                        }`}>
+                                                                        {notification.title}
+                                                                    </p>
+                                                                    {!notification.is_read && (
+                                                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ml-2 ${getNotificationColor(notification)}`}></div>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                                                    {notification.message}
+                                                                </p>
+                                                                <p className="text-xs text-gray-500 mt-2">
+                                                                    {formatTime(notification.created_at)}
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                ))
+                                            ) : (
+                                                <div className="p-8 text-center text-gray-500">
+                                                    <div className="text-4xl mb-2">🔔</div>
+                                                    <p className="text-sm">No notifications yet</p>
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
                                         <div className="p-3 text-center border-t border-gray-200">
-                                            <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                                            <button
+                                                onClick={handleViewAllNotifications}
+                                                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                                            >
                                                 View all notifications
                                             </button>
                                         </div>

@@ -5,6 +5,8 @@ export default function DashboardHeader({ user }) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Properly destructure notifications from props
   const { notifications = [], unreadCount = 0 } = usePage().props;
 
   const handleLogout = () => {
@@ -15,6 +17,9 @@ export default function DashboardHeader({ user }) {
     router.post(`/notifications/${notificationId}/read`, {}, {
       preserveScroll: true,
       preserveState: true,
+      onSuccess: () => {
+        // Optionally close notification dropdown after marking as read
+      }
     });
   };
 
@@ -22,8 +27,34 @@ export default function DashboardHeader({ user }) {
     router.post('/notifications/mark-all-read', {}, {
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => setShowNotifications(false),
     });
+  };
+
+  const handleNotificationClick = (notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      markAsRead(notification.id);
+    }
+
+    // Navigate to link if exists
+    if (notification.link) {
+      router.visit(notification.link);
+    }
+
+    setShowNotifications(false);
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+
+    return date.toLocaleDateString();
   };
 
   return (
@@ -80,36 +111,88 @@ export default function DashboardHeader({ user }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {unreadCount}
+                  <span className="absolute top-0 right-0 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
 
               {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <h3 className="font-semibold text-gray-900">Notifications</h3>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${notification.unread ? 'bg-blue-50' : ''
-                          }`}
-                      >
-                        <p className="text-sm text-gray-900">{notification.text}</p>
-                        <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowNotifications(false)}
+                  ></div>
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-w-[calc(100vw-2rem)]">
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+                          </p>
+                        )}
                       </div>
-                    ))}
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={markAllAsRead}
+                          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.is_read ? 'bg-blue-50' : ''
+                              }`}
+                          >
+                            <div className="flex items-start space-x-3">
+                              <div className="flex-shrink-0 text-2xl">
+                                {notification.icon || '📢'}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className={`text-sm font-medium ${notification.is_read ? 'text-gray-700' : 'text-gray-900'
+                                    }`}>
+                                    {notification.title}
+                                  </p>
+                                  {!notification.is_read && (
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 ml-2"></div>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  {formatTime(notification.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-gray-500">
+                          <div className="text-4xl mb-2">🔔</div>
+                          <p className="text-sm">No notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 text-center border-t border-gray-200">
+                      <Link
+                        href="/notifications"
+                        className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                      >
+                        View all notifications
+                      </Link>
+                    </div>
                   </div>
-                  <div className="px-4 py-2 border-t border-gray-200">
-                    <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                      View all notifications
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
             </div>
 
@@ -135,41 +218,47 @@ export default function DashboardHeader({ user }) {
 
               {/* Profile Dropdown */}
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-                  <Link
-                    href="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    👤 Profile Settings
-                  </Link>
-                  <Link
-                    href="/security"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    🔒 Security
-                  </Link>
-                  <Link
-                    href="/wallet"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    💰 My Wallet
-                  </Link>
-                  {user.is_admin && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowProfileMenu(false)}
+                  ></div>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
                     <Link
-                      href="/admin/dashboard"
-                      className="block px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      ⚙️ Admin Panel
+                      👤 Profile Settings
                     </Link>
-                  )}
-                  <div className="border-t border-gray-200 my-2"></div>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    🚪 Logout
-                  </button>
-                </div>
+                    <Link
+                      href="/security"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      🔒 Security
+                    </Link>
+                    <Link
+                      href="/wallet"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      💰 My Wallet
+                    </Link>
+                    {user.is_admin && (
+                      <Link
+                        href="/admin/dashboard"
+                        className="block px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                      >
+                        ⚙️ Admin Panel
+                      </Link>
+                    )}
+                    <div className="border-t border-gray-200 my-2"></div>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      🚪 Logout
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
