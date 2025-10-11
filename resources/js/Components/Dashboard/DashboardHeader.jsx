@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 import Toast from '@/Components/Trading/Toast';
+import { useNotifications } from '@/Hooks/useNotifications';
 
 export default function DashboardHeader({ user }) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -11,9 +12,20 @@ export default function DashboardHeader({ user }) {
   const [clearing, setClearing] = useState(false);
   const [toast, setToast] = useState(null);
   const [imageError, setImageError] = useState(false);
+  const [showPermissionBanner, setShowPermissionBanner] = useState(false);
 
-  // Properly destructure notifications from props
-  const { notifications = [], unreadCount = 0, flash } = usePage().props;
+  const { flash } = usePage().props;
+
+  // Use real-time notifications hook
+  const {
+    notifications,
+    unreadCount,
+    newNotification,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    requestNotificationPermission,
+  } = useNotifications();
 
   // Show toast for flash messages
   useEffect(() => {
@@ -30,6 +42,25 @@ export default function DashboardHeader({ user }) {
     }
   }, [flash]);
 
+  // Show new notification toast
+  useEffect(() => {
+    if (newNotification) {
+      setToast({
+        message: newNotification.title,
+        description: newNotification.message,
+        type: 'info',
+        icon: newNotification.icon,
+      });
+    }
+  }, [newNotification]);
+
+  // Check browser notification permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      setShowPermissionBanner(true);
+    }
+  }, []);
+
   // Reset image error when user changes
   useEffect(() => {
     setImageError(false);
@@ -37,53 +68,6 @@ export default function DashboardHeader({ user }) {
 
   const handleLogout = () => {
     router.post(route('logout'));
-  };
-
-  const markAsRead = (notificationId) => {
-    router.post(`/notifications/${notificationId}/read`, {}, {
-      preserveScroll: true,
-      preserveState: true,
-    });
-  };
-
-  const markAllAsRead = () => {
-    router.post('/notifications/mark-all-read', {}, {
-      preserveScroll: true,
-      preserveState: true,
-    });
-  };
-
-  const openClearModal = () => {
-    setShowNotifications(false); // Close dropdown first
-    setShowClearModal(true);
-  };
-
-  const clearAllNotifications = () => {
-    setClearing(true);
-
-    router.delete('/notifications/clear-all', {
-      preserveScroll: true,
-      preserveState: false, // Force reload to update notifications count
-      onSuccess: () => {
-        setShowClearModal(false);
-        setShowNotifications(false);
-        setClearing(false);
-        setToast({
-          message: 'All notifications cleared successfully!',
-          type: 'success'
-        });
-      },
-      onError: (errors) => {
-        setClearing(false);
-        setToast({
-          message: errors?.message || 'Failed to clear notifications. Please try again.',
-          type: 'error'
-        });
-      },
-      onFinish: () => {
-        setClearing(false);
-      }
-    });
   };
 
   const handleNotificationClick = (notification) => {
@@ -98,6 +82,33 @@ export default function DashboardHeader({ user }) {
     }
 
     setShowNotifications(false);
+  };
+
+  const openClearModal = () => {
+    setShowNotifications(false);
+    setShowClearModal(true);
+  };
+
+  const clearAllNotifications = () => {
+    setClearing(true);
+    clearAll();
+    setShowClearModal(false);
+    setClearing(false);
+    setToast({
+      message: 'All notifications cleared successfully!',
+      type: 'success'
+    });
+  };
+
+  const handleRequestPermission = async () => {
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      setShowPermissionBanner(false);
+      setToast({
+        message: 'Browser notifications enabled!',
+        type: 'success'
+      });
+    }
   };
 
   const formatTime = (dateString) => {
@@ -124,12 +135,12 @@ export default function DashboardHeader({ user }) {
 
     return (
       <div className={`${sizeClasses[size]} bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden ${className}`}>
-        {user.profile_picture ? (
+        {user.profile_picture && !imageError ? (
           <img
             src={`/storage/${user.profile_picture}`}
             alt={user.name}
             className="w-full h-full object-cover"
-          // onError={() => setImageError(true)}
+            onError={() => setImageError(true)}
           />
         ) : (
           <span>{user.name.charAt(0).toUpperCase()}</span>
@@ -141,6 +152,32 @@ export default function DashboardHeader({ user }) {
   return (
     <>
       <header className="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[60] shadow-sm">
+        {/* Browser Notification Permission Banner */}
+        {showPermissionBanner && (
+          <div className="bg-indigo-600 text-white px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">🔔</span>
+              <p className="text-sm font-medium">
+                Enable browser notifications to get instant updates
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleRequestPermission}
+                className="px-3 py-1 bg-white text-indigo-600 rounded-lg text-sm font-medium hover:bg-gray-100 transition"
+              >
+                Enable
+              </button>
+              <button
+                onClick={() => setShowPermissionBanner(false)}
+                className="px-3 py-1 text-white hover:bg-indigo-700 rounded-lg text-sm transition"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="h-16 flex items-center justify-between px-4 sm:px-6 lg:pl-72 lg:pr-8">
           {/* Logo/Brand - Always visible */}
           <div className="flex items-center flex-shrink-0">
@@ -148,42 +185,33 @@ export default function DashboardHeader({ user }) {
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
                 <span className="text-white font-bold text-xl">C</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 hidden sm:block whitespace-nowrap">CryptoExchange</span>
+              <span className="text-xl font-bold text-gray-900 hidden sm:block">CryptoEx</span>
             </Link>
           </div>
 
-          {/* Search Bar - Hidden on mobile, visible on desktop */}
-          <div className="hidden md:flex flex-1 max-w-2xl mx-4 lg:mx-8">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="Search cryptocurrencies..."
-                className="w-full px-4 py-2 pl-10 pr-4 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <svg
-                className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Right Side Actions */}
+          {/* Right side - Actions */}
           <div className="flex items-center space-x-4">
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
             {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg relative"
+                className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -193,47 +221,46 @@ export default function DashboardHeader({ user }) {
               {showNotifications && (
                 <>
                   <div
-                    className="fixed inset-0 z-10"
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowNotifications(false)}
-                  ></div>
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-w-[calc(100vw-2rem)]">
-                    <div className="p-4 border-b border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">Notifications</h3>
-                          {unreadCount > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
-                            </p>
-                          )}
-                        </div>
+                  />
+                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[32rem] flex flex-col">
+                    {/* Header */}
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <p className="text-xs text-gray-600">{unreadCount} unread</p>
+                        )}
                       </div>
-                      {notifications.length > 0 && (
-                        <div className="flex gap-2 mt-2">
-                          {unreadCount > 0 && (
-                            <button
-                              onClick={markAllAsRead}
-                              className="flex-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium py-1 px-2 rounded hover:bg-indigo-50 transition-colors"
-                            >
-                              Mark all read
-                            </button>
-                          )}
+                      <div className="flex items-center space-x-2">
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
                           <button
                             onClick={openClearModal}
-                            className="flex-1 text-xs text-red-600 hover:text-red-700 font-medium py-1 px-2 rounded hover:bg-red-50 transition-colors"
+                            className="text-xs text-red-600 hover:text-red-700 font-medium"
                           >
                             Clear all
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                    <div className="max-h-96 overflow-y-auto">
+
+                    {/* Notifications List */}
+                    <div className="overflow-y-auto flex-1">
                       {notifications.length > 0 ? (
-                        notifications.map((notification) => (
+                        notifications.slice(0, 10).map((notification) => (
                           <div
                             key={notification.id}
                             onClick={() => handleNotificationClick(notification)}
-                            className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.is_read ? 'bg-blue-50' : ''
+                            className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.is_read ? 'bg-blue-50' : ''
                               }`}
                           >
                             <div className="flex items-start space-x-3">
@@ -267,10 +294,13 @@ export default function DashboardHeader({ user }) {
                         </div>
                       )}
                     </div>
-                    <div className="p-3 text-center border-t border-gray-200">
+
+                    {/* Footer */}
+                    <div className="p-3 text-center border-t border-gray-200 bg-gray-50 rounded-b-xl">
                       <Link
                         href="/notifications"
                         className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                        onClick={() => setShowNotifications(false)}
                       >
                         View all notifications
                       </Link>
@@ -290,19 +320,10 @@ export default function DashboardHeader({ user }) {
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
                   <p className="text-xs text-gray-500">
-                    {user.email_verified_at ? (
-                      <span className="text-green-600 flex items-center">
-                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Verified
-                      </span>
-                    ) : (
-                      'Not verified'
-                    )}
+                    {user.email_verified_at ? '✓ Verified' : 'Not verified'}
                   </p>
                 </div>
-                <svg className="hidden md:block w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-gray-500 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -311,112 +332,115 @@ export default function DashboardHeader({ user }) {
               {showProfileMenu && (
                 <>
                   <div
-                    className="fixed inset-0 z-10"
+                    className="fixed inset-0 z-40"
                     onClick={() => setShowProfileMenu(false)}
-                  ></div>
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
-                    <div className="p-3 border-b border-gray-100 flex items-center space-x-3">
-                      <UserAvatar size="lg" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                      </div>
+                  />
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50 py-2">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
-                    <div className="py-2">
-                      <Link
-                        href="/dashboard"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        Dashboard
-                      </Link>
-                      <Link
-                        href="/profile/view"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        Profile Settings
-                      </Link>
-                      <Link
-                        href="/wallet"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        My Wallet
-                      </Link>
-                      <Link
-                        href="/security"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        Security
-                      </Link>
-                    </div>
-                    <div className="border-t border-gray-100">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
+
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      👤 My Profile
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      ⚙️ Settings
+                    </Link>
+
+                    <div className="border-t border-gray-100 my-2"></div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      🚪 Logout
+                    </button>
                   </div>
                 </>
               )}
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Clear All Notifications Modal - High z-index to be above header */}
-      <div className="relative z-[70]">
-        <Modal show={showClearModal} onClose={() => !clearing && setShowClearModal(false)} maxWidth="md">
-          <div className="p-6">
-            <div className="flex items-start space-x-4 mb-4">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🗑️</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Clear All Notifications
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Are you sure you want to delete all {notifications.length} notification{notifications.length !== 1 ? 's' : ''}? This action cannot be undone.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowClearModal(false)}
-                disabled={clearing}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+        {/* Mobile Menu */}
+        {showMobileMenu && (
+          <div className="lg:hidden border-t border-gray-200 bg-white">
+            <div className="px-4 py-3 space-y-2">
+              <Link
+                href="/dashboard"
+                className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
               >
-                Cancel
-              </button>
-              <button
-                onClick={clearAllNotifications}
-                disabled={clearing}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                Dashboard
+              </Link>
+              <Link
+                href="/trade"
+                className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
               >
-                {clearing ? (
-                  <div className="flex items-center justify-center">
-                    <svg className="animate-spin h-5 w-5 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Clearing...
-                  </div>
-                ) : 'Clear All'}
-              </button>
+                Trade
+              </Link>
+              <Link
+                href="/wallet"
+                className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Wallet
+              </Link>
             </div>
           </div>
-        </Modal>
-      </div>
+        )}
+      </header>
 
-      {/* Toast Notification */}
+      {/* Clear All Modal */}
+      <Modal show={showClearModal} onClose={() => setShowClearModal(false)} maxWidth="md">
+        <div className="p-6">
+          <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+
+          <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+            Clear All Notifications?
+          </h3>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            This will permanently delete all {notifications.length} notification{notifications.length !== 1 ? 's' : ''}. This action cannot be undone.
+          </p>
+
+          <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={() => setShowClearModal(false)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={clearAllNotifications}
+              disabled={clearing}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition disabled:opacity-50"
+            >
+              {clearing ? 'Clearing...' : 'Clear All'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast Notifications */}
       {toast && (
         <Toast
           message={toast.message}
+          description={toast.description}
           type={toast.type}
+          icon={toast.icon}
           onClose={() => setToast(null)}
         />
       )}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -10,20 +11,20 @@ class WalletController extends Controller
     public function index()
     {
         $user = auth()->user();
-        
+
         // Get all user wallets with cryptocurrency details
         $wallets = $user->wallets()->with('cryptocurrency')->get();
-        
+
         // Get all available cryptocurrencies
         $cryptocurrencies = \App\Models\Cryptocurrency::where('is_active', true)
             ->orderBy('symbol', 'asc')
             ->get();
-        
+
         // Calculate total portfolio value in USD
         $totalPortfolioValue = $wallets->sum(function ($wallet) {
             return $wallet->balance * $wallet->cryptocurrency->current_price;
         });
-        
+
         // Get recent wallet transactions
         $recentTransactions = $user->transactions()
             ->with('cryptocurrency')
@@ -31,7 +32,7 @@ class WalletController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-        
+
         // Calculate wallet statistics
         $stats = [
             'total_portfolio_value' => $totalPortfolioValue,
@@ -41,7 +42,7 @@ class WalletController extends Controller
             'total_withdrawals' => $user->transactions()->where('type', 'withdrawal')->where('status', 'completed')->sum('amount'),
             'pending_transactions' => $user->transactions()->whereIn('type', ['deposit', 'withdrawal'])->where('status', 'pending')->count(),
         ];
-        
+
         // Portfolio distribution
         $portfolioDistribution = $wallets->map(function ($wallet) use ($totalPortfolioValue) {
             $value = $wallet->balance * $wallet->cryptocurrency->current_price;
@@ -59,7 +60,7 @@ class WalletController extends Controller
         })->filter(function ($item) {
             return $item['total_balance'] > 0;
         })->sortByDesc('value')->values();
-        
+
         return Inertia::render('Wallet/Index', [
             'wallets' => $wallets,
             'cryptocurrencies' => $cryptocurrencies,
@@ -68,20 +69,20 @@ class WalletController extends Controller
             'portfolioDistribution' => $portfolioDistribution,
         ]);
     }
-    
+
     public function deposit(Request $request)
     {
         $request->validate([
             'cryptocurrency_id' => 'required|exists:cryptocurrencies,id',
             'amount' => 'required|numeric|min:0.00000001',
         ]);
-        
+
         $user = auth()->user();
         $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
-        
+
         // Ensure wallet exists
         $wallet = $user->createWalletIfNotExists($cryptocurrency->id);
-        
+
         // Create deposit transaction
         $transaction = \App\Models\Transaction::create([
             'transaction_id' => 'TXN-' . strtoupper(uniqid()),
@@ -93,48 +94,71 @@ class WalletController extends Controller
             'status' => 'pending', // In production, this would be pending until confirmed
             'notes' => 'Deposit via platform',
         ]);
-        
+
         // In a real application, you would:
         // 1. Generate a unique deposit address
         // 2. Wait for blockchain confirmation
         // 3. Update transaction status to 'completed'
         // 4. Credit the wallet
-        
+
         // For demo purposes, we'll auto-approve small amounts
         if ($request->amount <= 1000 && $cryptocurrency->is_fiat) {
             $transaction->status = 'completed';
             $transaction->processed_at = now();
             $transaction->save();
-            
+
             $wallet->addBalance($request->amount);
-            
-            // Notify user
-            \App\Models\Notification::createForUser(
-                $user->id,
-                'transaction',
-                'Deposit Successful',
-                "Your deposit of {$request->amount} {$cryptocurrency->symbol} has been credited to your wallet.",
-                '/wallet',
-                ['transaction_id' => $transaction->id],
-                '💰'
+
+            // Notify user with real-time notification
+            NotificationService::send(
+                user: $user,
+                type: 'deposit_confirmed',
+                title: 'Deposit Successful',
+                message: "Your deposit of {$request->amount} {$cryptocurrency->symbol} has been credited to your wallet.",
+                icon: '💰',
+                link: '/wallet',
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                    'amount' => $request->amount,
+                    'cryptocurrency' => $cryptocurrency->symbol,
+                ]
             );
-            
+
             return back()->with('success', 'Deposit successful! Funds added to your wallet.');
         }
-        
-        // Notify all admins about new pending transaction
-        \App\Models\Notification::createForAllAdmins(
-            'transaction',
-            'New Deposit Request',
-            "{$user->name} requested a deposit of {$request->amount} {$cryptocurrency->symbol}",
-            '/admin/transactions',
-            ['transaction_id' => $transaction->id],
-            '💵'
+
+        // Notify all admins about new pending transaction (Real-time)
+        NotificationService::sendToAdmins(
+            type: 'admin_deposit_alert',
+            title: '💵 New Deposit Request',
+            message: "{$user->name} requested a deposit of {$request->amount} {$cryptocurrency->symbol}",
+            icon: '💵',
+            link: "/admin/transactions/{$transaction->id}",
+            data: [
+                'transaction_id' => $transaction->transaction_id,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'amount' => $request->amount,
+                'cryptocurrency' => $cryptocurrency->symbol,
+            ]
         );
-        
+
+        // Notify user
+        NotificationService::send(
+            user: $user,
+            type: 'deposit_pending',
+            title: 'Deposit Request Submitted',
+            message: "Your deposit request of {$request->amount} {$cryptocurrency->symbol} has been submitted and is awaiting confirmation.",
+            icon: '⏳',
+            link: '/transactions',
+            data: [
+                'transaction_id' => $transaction->transaction_id,
+            ]
+        );
+
         return back()->with('success', 'Deposit request submitted. Awaiting confirmation.');
     }
-    
+
     public function withdraw(Request $request)
     {
         $request->validate([
@@ -142,33 +166,33 @@ class WalletController extends Controller
             'amount' => 'required|numeric|min:0.00000001',
             'address' => 'nullable|string|max:255', // Withdrawal address
         ]);
-        
+
         $user = auth()->user();
         $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
-        
+
         $wallet = $user->wallets()->where('cryptocurrency_id', $cryptocurrency->id)->first();
-        
+
         if (!$wallet) {
             return back()->withErrors(['error' => 'Wallet not found']);
         }
-        
+
         if ($wallet->balance < $request->amount) {
             return back()->withErrors(['error' => 'Insufficient balance. Available: ' . $wallet->balance . ' ' . $cryptocurrency->symbol]);
         }
-        
+
         // Calculate withdrawal fee (example: 0.5%)
         $fee = $request->amount * 0.005;
         $totalAmount = $request->amount + $fee;
-        
+
         if ($wallet->balance < $totalAmount) {
             return back()->withErrors(['error' => 'Insufficient balance including fees. Required: ' . $totalAmount . ' ' . $cryptocurrency->symbol]);
         }
-        
+
         // Deduct balance immediately
         if (!$wallet->deductBalance($totalAmount)) {
             return back()->withErrors(['error' => 'Failed to process withdrawal']);
         }
-        
+
         // Create withdrawal transaction
         $transaction = \App\Models\Transaction::create([
             'transaction_id' => 'TXN-' . strtoupper(uniqid()),
@@ -181,37 +205,44 @@ class WalletController extends Controller
             'to_address' => $request->address,
             'notes' => 'Withdrawal request',
         ]);
-        
+
         // In a real application, you would:
         // 1. Queue the withdrawal for admin approval
         // 2. Process blockchain transaction
         // 3. Update status when confirmed
-        
-        // Notify all admins about new withdrawal request
-        \App\Models\Notification::createForAllAdmins(
-            'transaction',
-            'New Withdrawal Request',
-            "{$user->name} requested a withdrawal of {$request->amount} {$cryptocurrency->symbol}",
-            '/admin/transactions',
-            ['transaction_id' => $transaction->id],
-            '💸'
+
+        // Notify all admins about new withdrawal request (Real-time)
+        NotificationService::sendToAdmins(
+            type: 'admin_withdrawal_alert',
+            title: '💸 New Withdrawal Request',
+            message: "{$user->name} requested a withdrawal of {$request->amount} {$cryptocurrency->symbol}",
+            icon: '💸',
+            link: "/admin/transactions/{$transaction->id}",
+            data: [
+                'transaction_id' => $transaction->transaction_id,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'amount' => $request->amount,
+                'cryptocurrency' => $cryptocurrency->symbol,
+                'address' => $request->address,
+            ]
         );
-        
-        // Notify user
-        \App\Models\Notification::createForUser(
-            $user->id,
-            'transaction',
-            'Withdrawal Request Submitted',
-            "Your withdrawal request of {$request->amount} {$cryptocurrency->symbol} has been submitted and is awaiting approval.",
-            '/transactions',
-            ['transaction_id' => $transaction->id],
-            '⏳'
+
+        // Notify user (Real-time)
+        NotificationService::send(
+            user: $user,
+            type: 'withdrawal_pending',
+            title: 'Withdrawal Request Submitted',
+            message: "Your withdrawal request of {$request->amount} {$cryptocurrency->symbol} has been submitted and is awaiting approval.",
+            icon: '⏳',
+            link: '/transactions',
+            data: [
+                'transaction_id' => $transaction->transaction_id,
+                'amount' => $request->amount,
+                'cryptocurrency' => $cryptocurrency->symbol,
+            ]
         );
-        
-        return back()->with('success', 'Withdrawal request submitted successfully. Awaiting approval.');
-        // 2. Process blockchain transaction
-        // 3. Update status when confirmed
-        
+
         return back()->with('success', 'Withdrawal request submitted successfully. Awaiting approval.');
     }
 
@@ -220,20 +251,20 @@ class WalletController extends Controller
         $request->validate([
             'cryptocurrency_id' => 'required|exists:cryptocurrencies,id',
         ]);
-        
+
         $user = auth()->user();
         $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
-        
+
         // Ensure wallet exists
         $wallet = $user->createWalletIfNotExists($cryptocurrency->id);
-        
+
         // In a real application, you would generate a unique blockchain address
         // For demo purposes, generate a random address
         if (!$wallet->address) {
             $wallet->address = $cryptocurrency->symbol . '-' . strtoupper(substr(md5(uniqid()), 0, 32));
             $wallet->save();
         }
-        
+
         return response()->json([
             'success' => true,
             'address' => $wallet->address,

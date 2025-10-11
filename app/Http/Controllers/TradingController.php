@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ class TradingController extends Controller
     {
         $cryptocurrencies = \App\Models\Cryptocurrency::active()->get();
         $userWallets = auth()->user()->wallets()->with('cryptocurrency')->get();
-        
+
         // Ensure user has USD wallet for trading
         $usdCurrency = \App\Models\Cryptocurrency::where('symbol', 'USD')->first();
         if ($usdCurrency) {
@@ -21,7 +22,7 @@ class TradingController extends Controller
             // Refresh wallets to include newly created one
             $userWallets = auth()->user()->wallets()->with('cryptocurrency')->get();
         }
-        
+
         // Get active orders for the user
         $activeOrders = auth()->user()->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
@@ -29,7 +30,7 @@ class TradingController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-        
+
         return Inertia::render('Trading/Index', [
             'cryptocurrencies' => $cryptocurrencies,
             'wallets' => $userWallets,
@@ -40,7 +41,7 @@ class TradingController extends Controller
     public function getMarketData($symbol)
     {
         $crypto = \App\Models\Cryptocurrency::where('symbol', $symbol)->firstOrFail();
-        
+
         // Get recent orders for order book
         $buyOrders = \App\Models\Order::where('base_currency_id', $crypto->id)
             ->where('side', 'buy')
@@ -48,14 +49,14 @@ class TradingController extends Controller
             ->orderBy('price', 'desc')
             ->limit(20)
             ->get();
-            
+
         $sellOrders = \App\Models\Order::where('base_currency_id', $crypto->id)
             ->where('side', 'sell')
             ->where('status', 'pending')
             ->orderBy('price', 'asc')
             ->limit(20)
             ->get();
-            
+
         // Get recent trades
         $recentTrades = \App\Models\Transaction::where('cryptocurrency_id', $crypto->id)
             ->whereIn('type', ['buy', 'sell'])
@@ -87,10 +88,10 @@ class TradingController extends Controller
         ]);
 
         $user = auth()->user();
-        
+
         try {
             DB::beginTransaction();
-            
+
             $baseCurrency = \App\Models\Cryptocurrency::findOrFail($request->base_currency_id);
             $quoteCurrency = \App\Models\Cryptocurrency::findOrFail($request->quote_currency_id);
 
@@ -125,14 +126,14 @@ class TradingController extends Controller
                 // For buy orders, lock quote currency (USD)
                 $requiredAmount = $request->quantity * $orderPrice;
                 $wallet = $user->wallets()->where('cryptocurrency_id', $quoteCurrency->id)->first();
-                
+
                 if (!$wallet || $wallet->balance < $requiredAmount) {
                     DB::rollBack();
                     return response()->json([
                         'error' => 'Insufficient ' . $quoteCurrency->symbol . ' balance. Required: ' . number_format($requiredAmount, 2) . ' ' . $quoteCurrency->symbol
                     ], 400);
                 }
-                
+
                 if (!$wallet->lockBalance($requiredAmount)) {
                     DB::rollBack();
                     return response()->json(['error' => 'Failed to lock balance'], 400);
@@ -140,14 +141,14 @@ class TradingController extends Controller
             } else {
                 // For sell orders, lock base currency (BTC, ETH, etc.)
                 $wallet = $user->wallets()->where('cryptocurrency_id', $baseCurrency->id)->first();
-                
+
                 if (!$wallet || $wallet->balance < $request->quantity) {
                     DB::rollBack();
                     return response()->json([
                         'error' => 'Insufficient ' . $baseCurrency->symbol . ' balance. Required: ' . $request->quantity . ' ' . $baseCurrency->symbol
                     ], 400);
                 }
-                
+
                 if (!$wallet->lockBalance($request->quantity)) {
                     DB::rollBack();
                     return response()->json(['error' => 'Failed to lock balance'], 400);
@@ -161,21 +162,23 @@ class TradingController extends Controller
                 $this->processMarketOrder($order);
             }
 
-            // Create notification for user
-            \App\Models\Notification::create([
-                'user_id' => $user->id,
-                'type' => 'order_placed',
-                'title' => 'Order Placed',
-                'message' => "Your {$order->side} order for {$order->quantity} {$baseCurrency->symbol} has been placed successfully.",
-                'data' => json_encode([
+            // Create real-time notification for user
+            NotificationService::send(
+                user: $user,
+                type: 'order_placed',
+                title: 'Order Placed',
+                message: "Your {$order->side} order for {$order->quantity} {$baseCurrency->symbol} has been placed successfully.",
+                icon: '📋',
+                link: "/orders/{$order->id}",
+                data: [
                     'order_id' => $order->order_id,
                     'type' => $order->type,
                     'side' => $order->side,
-                ]),
-            ]);
+                ]
+            );
 
             // Notify ALL admins about the new order
-            $this->notifyAdminsAboutOrder($order, $user);
+            $this->notifyAdminsAboutOrder($order, $user, $baseCurrency, $quoteCurrency);
 
             DB::commit();
 
@@ -184,11 +187,10 @@ class TradingController extends Controller
                 'message' => 'Order placed successfully',
                 'order' => $order->load(['baseCurrency', 'quoteCurrency'])
             ], 201);
-            
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Order placement failed: ' . $e->getMessage());
-            
+
             return response()->json([
                 'error' => 'Failed to place order: ' . $e->getMessage()
             ], 500);
@@ -225,17 +227,19 @@ class TradingController extends Controller
             // Update order statuses
             if ($matchOrder->filled_quantity >= $matchOrder->quantity) {
                 $matchOrder->status = 'filled';
-                
-                // Create notification for matched order owner
-                \App\Models\Notification::create([
-                    'user_id' => $matchOrder->user_id,
-                    'type' => 'order_filled',
-                    'title' => 'Order Filled',
-                    'message' => "Your {$matchOrder->side} order for {$matchOrder->quantity} {$matchOrder->baseCurrency->symbol} has been filled.",
-                    'data' => json_encode([
+
+                // Create real-time notification for matched order owner
+                NotificationService::send(
+                    user: $matchOrder->user,
+                    type: 'order_filled',
+                    title: 'Order Filled',
+                    message: "Your {$matchOrder->side} order for {$matchOrder->quantity} {$matchOrder->baseCurrency->symbol} has been filled.",
+                    icon: '✅',
+                    link: "/orders/{$matchOrder->id}",
+                    data: [
                         'order_id' => $matchOrder->order_id,
-                    ]),
-                ]);
+                    ]
+                );
             } else {
                 $matchOrder->status = 'partial';
             }
@@ -250,17 +254,19 @@ class TradingController extends Controller
         // Update order status
         if ($order->filled_quantity >= $order->quantity) {
             $order->status = 'filled';
-            
-            // Create notification
-            \App\Models\Notification::create([
-                'user_id' => $order->user_id,
-                'type' => 'order_filled',
-                'title' => 'Order Filled',
-                'message' => "Your {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} has been filled.",
-                'data' => json_encode([
+
+            // Create real-time notification
+            NotificationService::send(
+                user: $order->user,
+                type: 'order_filled',
+                title: 'Order Filled',
+                message: "Your {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} has been filled.",
+                icon: '✅',
+                link: "/orders/{$order->id}",
+                data: [
                     'order_id' => $order->order_id,
-                ]),
-            ]);
+                ]
+            );
         } else if ($order->filled_quantity > 0) {
             $order->status = 'partial';
         } else {
@@ -319,7 +325,7 @@ class TradingController extends Controller
     private function updateWalletsForTrade($buyOrder, $sellOrder, $quantity, $price)
     {
         $totalCost = $quantity * $price;
-        
+
         // Buyer's wallets
         $buyerQuoteWallet = $buyOrder->user->wallets()
             ->where('cryptocurrency_id', $buyOrder->quote_currency_id)
@@ -354,62 +360,56 @@ class TradingController extends Controller
     }
 
     /**
-     * Notify all admins about a new order placement
+     * Notify all admins about a new order placement (Real-time)
      */
-    private function notifyAdminsAboutOrder($order, $user)
+    private function notifyAdminsAboutOrder($order, $user, $baseCurrency, $quoteCurrency)
     {
-        $admins = \App\Models\User::where('is_admin', true)->get();
-        
-        foreach ($admins as $admin) {
-            \App\Models\Notification::create([
-                'user_id' => $admin->id,
-                'type' => 'admin_order_alert',
-                'title' => '🔔 New Order Placed',
-                'message' => "{$user->name} placed a {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} at " . 
-                            ($order->type === 'market' ? 'market price' : '$' . number_format($order->price, 2)),
-                'data' => json_encode([
-                    'order_id' => $order->order_id,
-                    'user_id' => $user->id,
-                    'user_name' => $user->name,
-                    'type' => $order->type,
-                    'side' => $order->side,
-                    'quantity' => $order->quantity,
-                    'price' => $order->price,
-                ]),
-            ]);
-        }
+        NotificationService::sendToAdmins(
+            type: 'admin_order_alert',
+            title: '🔔 New Order Placed',
+            message: "{$user->name} placed a {$order->side} order for {$order->quantity} {$baseCurrency->symbol} at " .
+                ($order->type === 'market' ? 'market price' : '$' . number_format($order->price, 2)),
+            icon: '📋',
+            link: "/admin/orders/{$order->id}",
+            data: [
+                'order_id' => $order->order_id,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'type' => $order->type,
+                'side' => $order->side,
+                'quantity' => $order->quantity,
+                'price' => $order->price,
+            ]
+        );
     }
 
     /**
-     * Notify all admins about a completed trade
+     * Notify all admins about a completed trade (Real-time)
      */
     private function notifyAdminsAboutTrade($buyerTransaction, $sellerTransaction, $quantity, $price)
     {
-        $admins = \App\Models\User::where('is_admin', true)->get();
-        
         $buyer = \App\Models\User::find($buyerTransaction->user_id);
         $seller = \App\Models\User::find($sellerTransaction->user_id);
         $crypto = \App\Models\Cryptocurrency::find($buyerTransaction->cryptocurrency_id);
-        
+
         $totalValue = $quantity * $price;
-        
-        foreach ($admins as $admin) {
-            \App\Models\Notification::create([
-                'user_id' => $admin->id,
-                'type' => 'admin_trade_alert',
-                'title' => '✅ Trade Executed',
-                'message' => "Trade completed: {$buyer->name} bought {$quantity} {$crypto->symbol} from {$seller->name} at \${$price} (Total: \${$totalValue})",
-                'data' => json_encode([
-                    'buyer_transaction_id' => $buyerTransaction->transaction_id,
-                    'seller_transaction_id' => $sellerTransaction->transaction_id,
-                    'buyer_name' => $buyer->name,
-                    'seller_name' => $seller->name,
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'total_value' => $totalValue,
-                    'cryptocurrency' => $crypto->symbol,
-                ]),
-            ]);
-        }
+
+        NotificationService::sendToAdmins(
+            type: 'admin_trade_alert',
+            title: '✅ Trade Executed',
+            message: "Trade completed: {$buyer->name} bought {$quantity} {$crypto->symbol} from {$seller->name} at \${$price} (Total: \${$totalValue})",
+            icon: '💰',
+            link: "/admin/transactions",
+            data: [
+                'buyer_transaction_id' => $buyerTransaction->transaction_id,
+                'seller_transaction_id' => $sellerTransaction->transaction_id,
+                'buyer_name' => $buyer->name,
+                'seller_name' => $seller->name,
+                'quantity' => $quantity,
+                'price' => $price,
+                'total_value' => $totalValue,
+                'cryptocurrency' => $crypto->symbol,
+            ]
+        );
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -11,52 +12,52 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        
+
         // Get filter parameters
         $search = $request->input('search', '');
         $status = $request->input('status', 'all');
         $side = $request->input('side', 'all');
         $type = $request->input('type', 'all');
-        
+
         // Build query for orders
         $query = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency']);
-        
+
         // Apply search filter
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('order_id', 'like', "%{$search}%")
-                  ->orWhereHas('baseCurrency', function($q) use ($search) {
-                      $q->where('symbol', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('quoteCurrency', function($q) use ($search) {
-                      $q->where('symbol', 'like', "%{$search}%")
-                        ->orWhere('name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('baseCurrency', function ($q) use ($search) {
+                        $q->where('symbol', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('quoteCurrency', function ($q) use ($search) {
+                        $q->where('symbol', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    });
             });
         }
-        
+
         // Apply status filter
         if ($status !== 'all') {
             $query->where('status', $status);
         }
-        
+
         // Apply side filter
         if ($side !== 'all') {
             $query->where('side', $side);
         }
-        
+
         // Apply type filter
         if ($type !== 'all') {
             $query->where('type', $type);
         }
-        
+
         // Get paginated orders
         $orders = $query->orderBy('created_at', 'desc')
             ->paginate(15)
             ->withQueryString();
-        
+
         // Calculate statistics
         $stats = [
             'total' => $user->orders()->count(),
@@ -71,13 +72,13 @@ class OrderController extends Controller
                 ->whereMonth('created_at', Carbon::now()->month)
                 ->count(),
         ];
-        
+
         // Get order distribution by side
         $ordersBySide = [
             'buy' => $user->orders()->where('side', 'buy')->count(),
             'sell' => $user->orders()->where('side', 'sell')->count(),
         ];
-        
+
         return Inertia::render('Orders/Index', [
             'orders' => $orders,
             'stats' => $stats,
@@ -90,16 +91,16 @@ class OrderController extends Controller
             ],
         ]);
     }
-    
+
     public function show($id)
     {
         $user = auth()->user();
-        
+
         // Get order with all related data
         $order = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
             ->findOrFail($id);
-        
+
         // Get related transactions for this order
         $transactions = \App\Models\Transaction::where('user_id', $user->id)
             ->where('cryptocurrency_id', $order->base_currency_id)
@@ -108,42 +109,42 @@ class OrderController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-        
+
         return Inertia::render('Orders/Show', [
             'order' => $order,
             'transactions' => $transactions,
         ]);
     }
-    
+
     public function cancel($id)
     {
         $user = auth()->user();
-        
+
         // Find the order WITH relationships loaded
         $order = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
             ->findOrFail($id);
-        
+
         // Check if order can be cancelled
         if (!in_array($order->status, ['pending', 'partial'])) {
             return back()->with('error', 'This order cannot be cancelled.');
         }
-        
+
         // Calculate remaining quantity
         $remainingQuantity = $order->quantity - $order->filled_quantity;
-        
+
         // Release locked funds
         if ($order->side === 'buy') {
             // Release locked quote currency (e.g., USD)
             $wallet = $user->wallets()
                 ->where('cryptocurrency_id', $order->quote_currency_id)
                 ->first();
-            
+
             if ($wallet) {
                 // Calculate locked amount based on remaining quantity
                 $price = $order->price ?? ($order->baseCurrency ? $order->baseCurrency->current_price : 0);
                 $lockedAmount = $remainingQuantity * $price;
-                
+
                 if ($lockedAmount > 0) {
                     $wallet->unlockBalance($lockedAmount);
                 }
@@ -153,82 +154,84 @@ class OrderController extends Controller
             $wallet = $user->wallets()
                 ->where('cryptocurrency_id', $order->base_currency_id)
                 ->first();
-            
+
             if ($wallet && $remainingQuantity > 0) {
                 $wallet->unlockBalance($remainingQuantity);
             }
         }
-        
+
         // Update order status
         $order->status = 'cancelled';
         $order->save();
-        
-        // Create notification with proper null checking
+
+        // Create real-time notification with proper null checking
         $baseCurrencySymbol = $order->baseCurrency ? $order->baseCurrency->symbol : 'Unknown';
         $quoteCurrencySymbol = $order->quoteCurrency ? $order->quoteCurrency->symbol : 'Unknown';
-        
-        \App\Models\Notification::create([
-            'user_id' => $user->id,
-            'type' => 'order_cancelled',
-            'title' => 'Order Cancelled',
-            'message' => "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been cancelled.",
-            'data' => json_encode([
+
+        NotificationService::send(
+            user: $user,
+            type: 'order_cancelled',
+            title: 'Order Cancelled',
+            message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been cancelled.",
+            icon: '🚫',
+            link: "/orders/{$order->id}",
+            data: [
                 'order_id' => $order->order_id,
                 'base_currency' => $baseCurrencySymbol,
                 'quote_currency' => $quoteCurrencySymbol,
-            ]),
-        ]);
-        
+            ]
+        );
+
         return back()->with('success', 'Order cancelled successfully.');
     }
-    
+
     public function export(Request $request)
     {
         $user = auth()->user();
-        
+
         // Get filter parameters
         $status = $request->input('status', 'all');
         $side = $request->input('side', 'all');
         $type = $request->input('type', 'all');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
-        
+
         // Build query
         $query = $user->orders()->with(['baseCurrency', 'quoteCurrency']);
-        
+
         if ($status !== 'all') {
             $query->where('status', $status);
         }
-        
+
         if ($side !== 'all') {
             $query->where('side', $side);
         }
-        
+
         if ($type !== 'all') {
             $query->where('type', $type);
         }
-        
+
         if ($dateFrom) {
             $query->whereDate('created_at', '>=', $dateFrom);
         }
-        
+
         if ($dateTo) {
             $query->whereDate('created_at', '<=', $dateTo);
         }
-        
+
         $orders = $query->orderBy('created_at', 'desc')->get();
-        
+
         // Generate CSV
         $filename = 'orders_' . now()->format('Y-m-d_His') . '.csv';
-        
+
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
-        
-        $callback = function() use ($orders) {
+
+        $callback = function () use ($orders) {
             $file = fopen('php://output', 'w');
-            
+
             // Add CSV headers
             fputcsv($file, [
                 'Order ID',
@@ -243,7 +246,7 @@ class OrderController extends Controller
                 'Time In Force',
                 'Created At',
             ]);
-            
+
             // Add order data
             foreach ($orders as $order) {
                 fputcsv($file, [
@@ -260,10 +263,10 @@ class OrderController extends Controller
                     $order->created_at->format('Y-m-d H:i:s'),
                 ]);
             }
-            
+
             fclose($file);
         };
-        
+
         return response()->stream($callback, 200, $headers);
     }
 }

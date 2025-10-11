@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -327,15 +328,20 @@ class AdminController extends Controller
             }
         }
 
-        // Create notification for user
-        \App\Models\Notification::createForUser(
-            $user->id,
-            'transaction',
-            'Transaction Approved',
-            "Your {$transaction->type} of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been approved and processed.",
-            '/transactions',
-            ['transaction_id' => $transaction->id],
-            '✅'
+        // Create real-time notification for user
+        NotificationService::send(
+            user: $user,
+            type: 'transaction_approved',
+            title: 'Transaction Approved',
+            message: "Your {$transaction->type} of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been approved and processed.",
+            icon: '✅',
+            link: '/transactions',
+            data: [
+                'transaction_id' => $transaction->transaction_id,
+                'type' => $transaction->type,
+                'amount' => $transaction->amount,
+                'cryptocurrency' => $transaction->cryptocurrency->symbol,
+            ]
         );
 
         return back()->with('success', 'Transaction approved successfully');
@@ -368,15 +374,18 @@ class AdminController extends Controller
             $wallet->addBalance($totalAmount);
         }
 
-        // Create notification for user
-        \App\Models\Notification::createForUser(
-            $user->id,
-            'transaction',
-            'Transaction Rejected',
-            "Your {$transaction->type} has been rejected. Reason: {$request->reason}",
-            '/transactions',
-            ['transaction_id' => $transaction->id],
-            '❌'
+        // Create real-time notification for user
+        NotificationService::send(
+            user: $user,
+            type: 'transaction_rejected',
+            title: 'Transaction Rejected',
+            message: "Your {$transaction->type} has been rejected. Reason: {$request->reason}",
+            icon: '❌',
+            link: '/transactions',
+            data: [
+                'transaction_id' => $transaction->transaction_id,
+                'reason' => $request->reason,
+            ]
         );
 
         return back()->with('success', 'Transaction rejected successfully');
@@ -394,7 +403,19 @@ class AdminController extends Controller
         $kyc->verified_at = now();
         $kyc->save();
 
-        // You might want to send a notification to the user here
+        // Send real-time notification to user
+        NotificationService::send(
+            user: $kyc->user,
+            type: 'kyc_approved',
+            title: 'KYC Verification Approved',
+            message: 'Congratulations! Your identity verification has been approved. You now have full access to all platform features.',
+            icon: '✅',
+            link: '/profile/kyc',
+            data: [
+                'kyc_id' => $kyc->id,
+                'approved_at' => now()->toIso8601String(),
+            ]
+        );
 
         return response()->json([
             'message' => 'KYC approved successfully',
@@ -418,7 +439,19 @@ class AdminController extends Controller
         $kyc->rejection_reason = $request->reason;
         $kyc->save();
 
-        // You might want to send a notification to the user here
+        // Send real-time notification to user
+        NotificationService::send(
+            user: $kyc->user,
+            type: 'kyc_rejected',
+            title: 'KYC Verification Rejected',
+            message: "Your identity verification was rejected. Reason: {$request->reason}. Please submit new documents.",
+            icon: '❌',
+            link: '/profile/kyc',
+            data: [
+                'kyc_id' => $kyc->id,
+                'reason' => $request->reason,
+            ]
+        );
 
         return response()->json([
             'message' => 'KYC rejected successfully',

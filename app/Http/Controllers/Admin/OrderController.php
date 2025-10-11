@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -95,19 +96,19 @@ class OrderController extends Controller
         $baseCurrencySymbol = $order->baseCurrency ? $order->baseCurrency->symbol : 'Unknown';
         $quoteCurrencySymbol = $order->quoteCurrency ? $order->quoteCurrency->symbol : 'Unknown';
 
-        \App\Models\Notification::create([
-            'user_id' => $order->user_id,
-            'type' => 'order_status_update',
-            'title' => 'Order Status Updated',
-            'message' => "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} status changed from {$oldStatus} to {$request->status}.",
-            'icon' => '📋',
-            'link' => "/orders/{$order->id}",
-            'data' => json_encode([
+        NotificationService::send(
+            user: $order->user,
+            type: 'order_status_update',
+            title: 'Order Status Updated',
+            message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} status changed from {$oldStatus} to {$request->status}.",
+            icon: '📋',
+            link: "/orders/{$order->id}",
+            data: [
                 'order_id' => $order->order_id,
                 'old_status' => $oldStatus,
                 'new_status' => $request->status,
-            ]),
-        ]);
+            ]
+        );
 
         // Log admin action
         Log::info('Admin updated order status', [
@@ -224,19 +225,19 @@ class OrderController extends Controller
             $baseCurrencySymbol = $order->baseCurrency->symbol ?? 'Unknown';
             $quoteCurrencySymbol = $order->quoteCurrency->symbol ?? 'Unknown';
 
-            \App\Models\Notification::create([
-                'user_id' => $order->user_id,
-                'type' => 'order_approved',
-                'title' => 'Order Approved',
-                'message' => "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been approved and filled!",
-                'icon' => '✅',
-                'link' => "/orders/{$order->id}",
-                'data' => json_encode([
+            NotificationService::send(
+                user: $order->user,
+                type: 'order_approved',
+                title: 'Order Approved',
+                message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been approved and is now active.",
+                icon: '✅',
+                link: "/orders/{$order->id}",
+                data: [
                     'order_id' => $order->order_id,
-                    'quantity' => $order->quantity,
+                    'approved_by' => auth()->user()->name,
                     'price' => $order->price,
-                ]),
-            ]);
+                ]
+            );
 
             // Log admin action
             Log::info('Admin approved order', [
@@ -290,19 +291,19 @@ class OrderController extends Controller
             $baseCurrencySymbol = $order->baseCurrency->symbol ?? 'Unknown';
             $quoteCurrencySymbol = $order->quoteCurrency->symbol ?? 'Unknown';
 
-            \App\Models\Notification::create([
-                'user_id' => $order->user_id,
-                'type' => 'order_rejected',
-                'title' => 'Order Rejected',
-                'message' => "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been rejected. Reason: {$request->reason}",
-                'icon' => '❌',
-                'link' => "/orders/{$order->id}",
-                'data' => json_encode([
+            NotificationService::send(
+                user: $order->user,
+                type: 'order_rejected',
+                title: 'Order Rejected',
+                message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been rejected. Reason: {$request->reason}",
+                icon: '❌',
+                link: "/orders/{$order->id}",
+                data: [
                     'order_id' => $order->order_id,
-                    'reason' => $request->reason,
                     'rejected_by' => auth()->user()->name,
-                ]),
-            ]);
+                    'reason' => $request->reason,
+                ]
+            );
 
             // Log admin action
             Log::info('Admin rejected order', [
