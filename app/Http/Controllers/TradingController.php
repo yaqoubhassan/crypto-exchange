@@ -157,10 +157,9 @@ class TradingController extends Controller
 
             $order->save();
 
-            // Process market orders immediately
-            if ($request->type === 'market') {
-                $this->processMarketOrder($order);
-            }
+            // ✅ FIX: Process ALL orders through matching engine
+            // Not just market orders!
+            $this->matchOrder($order);
 
             // Create real-time notification for user
             NotificationService::send(
@@ -182,6 +181,9 @@ class TradingController extends Controller
 
             DB::commit();
 
+            // Reload order to get updated filled_quantity and status
+            $order->refresh();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order placed successfully',
@@ -197,24 +199,33 @@ class TradingController extends Controller
         }
     }
 
-    private function processMarketOrder($order)
+    private function matchOrder($order)
     {
-        // Simple market order processing - match with best available orders
+        // Find opposite orders that can match
         $oppositeOrders = \App\Models\Order::where('base_currency_id', $order->base_currency_id)
             ->where('quote_currency_id', $order->quote_currency_id)
             ->where('side', $order->side === 'buy' ? 'sell' : 'buy')
-            ->where('status', 'pending')
-            ->orderBy('price', $order->side === 'buy' ? 'asc' : 'desc')
+            ->whereIn('status', ['pending', 'partial'])
+            ->where('id', '!=', $order->id) // Don't match with itself
+            ->orderBy('price', $order->side === 'buy' ? 'asc' : 'desc') // Best price first
+            ->orderBy('created_at', 'asc') // Then oldest first (FIFO)
             ->get();
 
-        $remainingQuantity = $order->quantity;
+        $remainingQuantity = $order->quantity - $order->filled_quantity;
         $totalFilled = 0;
         $weightedPriceSum = 0;
 
         foreach ($oppositeOrders as $matchOrder) {
             if ($remainingQuantity <= 0) break;
 
+            // ✅ FIX: Check if prices can match
+            if (!$this->canMatch($order, $matchOrder)) {
+                continue; // Skip this order if prices don't match
+            }
+
             $fillQuantity = min($remainingQuantity, $matchOrder->quantity - $matchOrder->filled_quantity);
+
+            // Determine the execution price (taker pays maker's price)
             $fillPrice = $matchOrder->price;
 
             // Update orders
@@ -224,47 +235,85 @@ class TradingController extends Controller
             $totalFilled += $fillQuantity;
             $weightedPriceSum += $fillQuantity * $fillPrice;
 
-            // Update order statuses
+            // Send order_matched notification for the current order
+            if ($fillQuantity > 0) {
+                NotificationService::send(
+                    user: $order->user,
+                    type: 'order_matched',
+                    title: 'Order Matched',
+                    message: "{$fillQuantity} {$order->baseCurrency->symbol} of your {$order->side} order matched at \${$fillPrice}",
+                    icon: '🎯',
+                    link: "/orders/{$order->id}",
+                    data: [
+                        'order_id' => $order->order_id,
+                        'matched_quantity' => $fillQuantity,
+                        'match_price' => $fillPrice,
+                        'total_filled' => $order->filled_quantity,
+                        'total_quantity' => $order->quantity,
+                    ]
+                );
+            }
+
+            // Update matched order status
             if ($matchOrder->filled_quantity >= $matchOrder->quantity) {
                 $matchOrder->status = 'filled';
 
-                // Create real-time notification for matched order owner
+                // Send order filled notification for matched order owner
                 NotificationService::send(
                     user: $matchOrder->user,
                     type: 'order_filled',
                     title: 'Order Filled',
-                    message: "Your {$matchOrder->side} order for {$matchOrder->quantity} {$matchOrder->baseCurrency->symbol} has been filled.",
+                    message: "Your {$matchOrder->side} order for {$matchOrder->quantity} {$matchOrder->baseCurrency->symbol} has been completely filled.",
                     icon: '✅',
                     link: "/orders/{$matchOrder->id}",
                     data: [
                         'order_id' => $matchOrder->order_id,
+                        'average_price' => $fillPrice,
                     ]
                 );
             } else {
                 $matchOrder->status = 'partial';
+
+                // Send order matched notification for partial fill
+                NotificationService::send(
+                    user: $matchOrder->user,
+                    type: 'order_matched',
+                    title: 'Order Partially Matched',
+                    message: "{$fillQuantity} {$matchOrder->baseCurrency->symbol} of your {$matchOrder->side} order matched at \${$fillPrice}",
+                    icon: '🎯',
+                    link: "/orders/{$matchOrder->id}",
+                    data: [
+                        'order_id' => $matchOrder->order_id,
+                        'matched_quantity' => $fillQuantity,
+                        'match_price' => $fillPrice,
+                        'total_filled' => $matchOrder->filled_quantity,
+                        'total_quantity' => $matchOrder->quantity,
+                    ]
+                );
             }
             $matchOrder->save();
 
             $remainingQuantity -= $fillQuantity;
 
-            // Create transaction records and notify admins
+            // Create transaction records and update wallets
             $this->createTradeTransaction($order, $matchOrder, $fillQuantity, $fillPrice);
         }
 
-        // Update order status
+        // Update main order status
         if ($order->filled_quantity >= $order->quantity) {
             $order->status = 'filled';
 
-            // Create real-time notification
+            // Send final filled notification
             NotificationService::send(
                 user: $order->user,
                 type: 'order_filled',
                 title: 'Order Filled',
-                message: "Your {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} has been filled.",
+                message: "Your {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} has been completely filled.",
                 icon: '✅',
                 link: "/orders/{$order->id}",
                 data: [
                     'order_id' => $order->order_id,
+                    'average_price' => $order->average_price,
                 ]
             );
         } else if ($order->filled_quantity > 0) {
@@ -279,6 +328,25 @@ class TradingController extends Controller
         }
 
         $order->save();
+    }
+
+    private function canMatch($order1, $order2)
+    {
+        // Market orders can match at any price
+        if ($order1->type === 'market' || $order2->type === 'market') {
+            return true;
+        }
+
+        // For limit orders, check if prices cross
+        if ($order1->side === 'buy' && $order2->side === 'sell') {
+            // Buy order price must be >= sell order price
+            return $order1->price >= $order2->price;
+        } else if ($order1->side === 'sell' && $order2->side === 'buy') {
+            // Sell order price must be <= buy order price  
+            return $order1->price <= $order2->price;
+        }
+
+        return false;
     }
 
     private function createTradeTransaction($buyOrder, $sellOrder, $quantity, $price)

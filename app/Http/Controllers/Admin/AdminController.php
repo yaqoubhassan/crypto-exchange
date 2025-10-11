@@ -311,26 +311,101 @@ class AdminController extends Controller
             return back()->withErrors(['error' => 'Only pending transactions can be approved']);
         }
 
+        // For withdrawals, send a "processing" notification first
+        if ($transaction->type === 'withdrawal') {
+            // Set status to processing
+            $transaction->status = 'processing';
+            $transaction->save();
+
+            // Notify user that withdrawal is now being processed
+            NotificationService::send(
+                user: $transaction->user,
+                type: 'withdrawal_processing',
+                title: 'Withdrawal Processing',
+                message: "Your withdrawal of {$transaction->amount} {$transaction->cryptocurrency->symbol} is now being processed on the blockchain.",
+                icon: '⏳',
+                link: '/transactions',
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                    'amount' => $transaction->amount,
+                    'cryptocurrency' => $transaction->cryptocurrency->symbol,
+                    'to_address' => $transaction->to_address,
+                ]
+            );
+
+            // In a real application, you would queue a job here to:
+            // 1. Send the blockchain transaction
+            // 2. Wait for confirmations
+            // 3. Update status to 'completed' when confirmed
+            // 4. Send the final "withdrawal completed" notification
+
+            // For now, simulate completion (in production, this would be in a queued job)
+            // You should create a Job like ProcessWithdrawal that handles the blockchain tx
+
+            // Simulating completion after processing (remove this in production)
+            $transaction->status = 'completed';
+            $transaction->processed_at = now();
+            $transaction->external_tx_id = 'BLOCKCHAIN-TX-' . strtoupper(uniqid());
+            $transaction->save();
+
+            // Send final completion notification
+            NotificationService::send(
+                user: $transaction->user,
+                type: 'withdrawal_completed',
+                title: 'Withdrawal Completed',
+                message: "Your withdrawal of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been completed successfully.",
+                icon: '✅',
+                link: '/transactions',
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                    'external_tx_id' => $transaction->external_tx_id,
+                    'amount' => $transaction->amount,
+                    'cryptocurrency' => $transaction->cryptocurrency->symbol,
+                ]
+            );
+
+            return back()->with('success', 'Withdrawal approved and processed successfully');
+        }
+
+        // For deposits
+        if ($transaction->type === 'deposit') {
+            $transaction->status = 'completed';
+            $transaction->processed_at = now();
+            $transaction->save();
+
+            // Update wallet balance
+            $user = $transaction->user;
+            $wallet = $user->wallets()->where('cryptocurrency_id', $transaction->cryptocurrency_id)->first();
+
+            if ($wallet) {
+                $wallet->addBalance($transaction->amount);
+            }
+
+            // Send deposit confirmed notification
+            NotificationService::send(
+                user: $user,
+                type: 'deposit_confirmed',
+                title: 'Deposit Confirmed',
+                message: "Your deposit of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been confirmed and credited to your wallet.",
+                icon: '💰',
+                link: '/wallet',
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                    'amount' => $transaction->amount,
+                    'cryptocurrency' => $transaction->cryptocurrency->symbol,
+                ]
+            );
+
+            return back()->with('success', 'Deposit approved successfully');
+        }
+
+        // For other transaction types
         $transaction->status = 'completed';
         $transaction->processed_at = now();
         $transaction->save();
 
-        // Update wallet balances based on transaction type
-        $user = $transaction->user;
-        $wallet = $user->wallets()->where('cryptocurrency_id', $transaction->cryptocurrency_id)->first();
-
-        if ($wallet) {
-            if ($transaction->type === 'deposit') {
-                $wallet->addBalance($transaction->amount);
-            } elseif ($transaction->type === 'withdrawal') {
-                // Already deducted when withdrawal was requested
-                // No additional action needed
-            }
-        }
-
-        // Create real-time notification for user
         NotificationService::send(
-            user: $user,
+            user: $transaction->user,
             type: 'transaction_approved',
             title: 'Transaction Approved',
             message: "Your {$transaction->type} of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been approved and processed.",

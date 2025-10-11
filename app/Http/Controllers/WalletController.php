@@ -79,6 +79,10 @@ class WalletController extends Controller
 
         $user = auth()->user();
         $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
+        $largeTransactionThreshold = 10000;
+
+        // Calculate USD value
+        $usdValue = $request->amount * ($cryptocurrency->current_price ?? 0);
 
         // Ensure wallet exists
         $wallet = $user->createWalletIfNotExists($cryptocurrency->id);
@@ -94,6 +98,39 @@ class WalletController extends Controller
             'status' => 'pending', // In production, this would be pending until confirmed
             'notes' => 'Deposit via platform',
         ]);
+
+        if ($usdValue >= $largeTransactionThreshold) {
+            // Send special alert to admins for large transactions
+            NotificationService::sendToAdmins(
+                type: 'large_transaction_alert',
+                title: '⚠️ Large Transaction Alert',
+                message: "{$user->name} deposited {$request->amount} {$cryptocurrency->symbol} (≈ \${$usdValue})",
+                icon: '⚠️',
+                link: "/admin/transactions/{$transaction->id}",
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                    'user_id' => $user->id,
+                    'user_name' => $user->name,
+                    'amount' => $request->amount,
+                    'cryptocurrency' => $cryptocurrency->symbol,
+                    'usd_value' => $usdValue,
+                    'threshold' => $largeTransactionThreshold,
+                ]
+            );
+
+            // Also notify the user
+            NotificationService::send(
+                user: $user,
+                type: 'large_deposit_alert',
+                title: 'Large Deposit Detected',
+                message: "Your large deposit of {$request->amount} {$cryptocurrency->symbol} is being processed with enhanced security review.",
+                icon: '🔒',
+                link: '/transactions',
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                ]
+            );
+        }
 
         // In a real application, you would:
         // 1. Generate a unique deposit address
@@ -170,6 +207,9 @@ class WalletController extends Controller
         $user = auth()->user();
         $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
 
+        $largeTransactionThreshold = 10000;
+        $usdValue = $request->amount * ($cryptocurrency->current_price ?? 0);
+
         $wallet = $user->wallets()->where('cryptocurrency_id', $cryptocurrency->id)->first();
 
         if (!$wallet) {
@@ -205,6 +245,37 @@ class WalletController extends Controller
             'to_address' => $request->address,
             'notes' => 'Withdrawal request',
         ]);
+
+        if ($usdValue >= $largeTransactionThreshold) {
+            NotificationService::sendToAdmins(
+                type: 'large_transaction_alert',
+                title: '⚠️ Large Withdrawal Alert',
+                message: "{$user->name} requested withdrawal of {$request->amount} {$cryptocurrency->symbol} (≈ \${$usdValue})",
+                icon: '⚠️',
+                link: "/admin/transactions/{$transaction->id}",
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                    'user_id' => $user->id,
+                    'user_name' => $user->name,
+                    'amount' => $request->amount,
+                    'cryptocurrency' => $cryptocurrency->symbol,
+                    'usd_value' => $usdValue,
+                    'threshold' => $largeTransactionThreshold,
+                ]
+            );
+
+            NotificationService::send(
+                user: $user,
+                type: 'large_withdrawal_alert',
+                title: 'Large Withdrawal Request',
+                message: "Your large withdrawal of {$request->amount} {$cryptocurrency->symbol} requires additional verification.",
+                icon: '🔒',
+                link: '/transactions',
+                data: [
+                    'transaction_id' => $transaction->transaction_id,
+                ]
+            );
+        }
 
         // In a real application, you would:
         // 1. Queue the withdrawal for admin approval
