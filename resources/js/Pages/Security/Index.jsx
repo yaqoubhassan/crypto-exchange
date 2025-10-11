@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Head, useForm } from '@inertiajs/react';
 
 export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
     const [showQRCode, setShowQRCode] = useState(false);
     const [backupCodes, setBackupCodes] = useState([]);
-    
+
     const { data, setData, post, processing, errors } = useForm({
         current_password: '',
         password: '',
@@ -53,7 +53,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
     };
 
     return (
-        <AuthenticatedLayout
+        <DashboardLayout
             user={auth.user}
             header={
                 <h2 className="font-semibold text-xl text-gray-800 leading-tight">
@@ -65,12 +65,12 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
 
             <div className="py-6">
                 <div className="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
-                    
+
                     {/* Account Security Overview */}
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6 bg-white border-b border-gray-200">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Account Security</h3>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                                     <div className="flex items-center">
@@ -83,33 +83,29 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <div className={`p-4 rounded-lg border ${
-                                    twoFactorEnabled 
-                                        ? 'bg-green-50 border-green-200' 
+
+                                <div className={`p-4 rounded-lg border ${twoFactorEnabled
+                                        ? 'bg-green-50 border-green-200'
                                         : 'bg-yellow-50 border-yellow-200'
-                                }`}>
+                                    }`}>
                                     <div className="flex items-center">
-                                        <div className={`text-2xl mr-3 ${
-                                            twoFactorEnabled ? 'text-green-600' : 'text-yellow-600'
-                                        }`}>
+                                        <div className={`text-2xl mr-3 ${twoFactorEnabled ? 'text-green-600' : 'text-yellow-600'
+                                            }`}>
                                             {twoFactorEnabled ? '🔐' : '⚠️'}
                                         </div>
                                         <div>
-                                            <div className={`font-medium ${
-                                                twoFactorEnabled ? 'text-green-900' : 'text-yellow-900'
-                                            }`}>
+                                            <div className={`font-medium ${twoFactorEnabled ? 'text-green-900' : 'text-yellow-900'
+                                                }`}>
                                                 Two-Factor Auth
                                             </div>
-                                            <div className={`text-sm ${
-                                                twoFactorEnabled ? 'text-green-600' : 'text-yellow-600'
-                                            }`}>
+                                            <div className={`text-sm ${twoFactorEnabled ? 'text-green-600' : 'text-yellow-600'
+                                                }`}>
                                                 {twoFactorEnabled ? 'Enabled' : 'Disabled'}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                                     <div className="flex items-center">
                                         <div className="text-blue-600 text-2xl mr-3">🔒</div>
@@ -129,7 +125,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
-                            
+
                             <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -146,7 +142,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         <div className="text-red-600 text-sm mt-1">{errors.current_password}</div>
                                     )}
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         New Password
@@ -162,7 +158,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         <div className="text-red-600 text-sm mt-1">{errors.password}</div>
                                     )}
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Confirm New Password
@@ -175,7 +171,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         required
                                     />
                                 </div>
-                                
+
                                 <button
                                     type="submit"
                                     disabled={processing}
@@ -191,13 +187,13 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Two-Factor Authentication</h3>
-                            
+
                             <div className="space-y-4">
                                 <p className="text-gray-600">
-                                    Add an extra layer of security to your account by enabling two-factor authentication. 
+                                    Add an extra layer of security to your account by enabling two-factor authentication.
                                     You'll need to enter a code from your authenticator app each time you sign in.
                                 </p>
-                                
+
                                 {!twoFactorEnabled ? (
                                     <div className="space-y-4">
                                         <button
@@ -207,7 +203,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         >
                                             {processing ? 'Enabling...' : 'Enable Two-Factor Authentication'}
                                         </button>
-                                        
+
                                         {showQRCode && (
                                             <div className="bg-gray-50 p-4 rounded-lg">
                                                 <h4 className="font-medium text-gray-900 mb-2">Setup Instructions:</h4>
@@ -216,7 +212,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                                     <li>Scan the QR code below with your authenticator app</li>
                                                     <li>Enter the 6-digit code from your app to verify setup</li>
                                                 </ol>
-                                                
+
                                                 <div className="mt-4 p-4 bg-white border-2 border-dashed border-gray-300 rounded-lg text-center">
                                                     <div className="text-6xl mb-2">📱</div>
                                                     <div className="text-sm text-gray-500">QR Code would appear here</div>
@@ -224,7 +220,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                                         Manual entry key: JBSWY3DPEHPK3PXP
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div className="mt-4">
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                         Verification Code
@@ -259,7 +255,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <button
                                             onClick={disableTwoFactor}
                                             disabled={processing}
@@ -269,7 +265,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         </button>
                                     </div>
                                 )}
-                                
+
                                 {backupCodes.length > 0 && (
                                     <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                                         <h4 className="font-medium text-yellow-900 mb-2">Backup Codes</h4>
@@ -301,7 +297,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Active Sessions</h3>
-                            
+
                             <p className="text-gray-600 mb-4">
                                 Manage and log out of your active sessions on other browsers and devices.
                             </p>
@@ -314,9 +310,9 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                                         <div>
                                             <div className="font-medium text-gray-900">Current Device</div>
                                             <div className="text-sm text-gray-600">
-                                                {navigator.userAgent.includes('Chrome') ? 'Chrome' : 
-                                                 navigator.userAgent.includes('Firefox') ? 'Firefox' : 
-                                                 navigator.userAgent.includes('Safari') ? 'Safari' : 'Browser'} • 
+                                                {navigator.userAgent.includes('Chrome') ? 'Chrome' :
+                                                    navigator.userAgent.includes('Firefox') ? 'Firefox' :
+                                                        navigator.userAgent.includes('Safari') ? 'Safari' : 'Browser'} •
                                                 Last active: Just now
                                             </div>
                                         </div>
@@ -370,7 +366,7 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Login Activity</h3>
-                            
+
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between py-3 border-b border-gray-200">
                                     <div className="flex items-center space-x-3">
@@ -472,6 +468,6 @@ export default function SecurityIndex({ auth, twoFactorEnabled = false }) {
                     </div>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </DashboardLayout>
     );
 }
