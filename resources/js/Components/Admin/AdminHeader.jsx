@@ -3,9 +3,21 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Dropdown from '@/Components/Dropdown';
 import Modal from '@/Components/Modal';
 import Toast from '@/Components/Trading/Toast';
+import { useNotifications } from '@/Hooks/useNotifications';
 
 export default function AdminHeader({ user, stats, selectedTimeframe, onTimeframeChange, toggleSidebar, isCollapsed, toggleCollapse }) {
-    const { notifications = [], unreadCount = 0, flash } = usePage().props;
+    const { flash } = usePage().props;
+
+    // Use the notifications hook for real-time updates
+    const {
+        notifications,
+        unreadCount,
+        newNotification,
+        markAsRead,
+        markAllAsRead,
+        clearAll,
+    } = useNotifications();
+
     const [showNotifications, setShowNotifications] = useState(false);
     const [showClearModal, setShowClearModal] = useState(false);
     const [clearing, setClearing] = useState(false);
@@ -26,17 +38,26 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
         }
     }, [flash]);
 
+    // Show toast for new notifications
+    useEffect(() => {
+        if (newNotification) {
+            setToast({
+                message: newNotification.title,
+                description: newNotification.message,
+                type: 'info',
+                icon: newNotification.icon,
+            });
+        }
+    }, [newNotification]);
+
     const handleLogout = () => {
         router.post(route('logout'));
     };
 
     const handleNotificationClick = (notification) => {
-        // Mark as read if not already read
+        // Mark as read using the hook
         if (!notification.is_read) {
-            router.post(`/notifications/${notification.id}/read`, {}, {
-                preserveScroll: true,
-                preserveState: true,
-            });
+            markAsRead(notification.id);
         }
 
         // Navigate to the link if it exists
@@ -52,38 +73,23 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
         setShowNotifications(false);
     };
 
-    const markAllAsRead = () => {
-        router.post('/notifications/mark-all-read', {}, {
-            preserveScroll: true,
-            preserveState: true,
-        });
+    const handleMarkAllAsRead = () => {
+        markAllAsRead();
     };
 
     const openClearModal = () => {
+        setShowNotifications(false);
         setShowClearModal(true);
     };
 
     const clearAllNotifications = () => {
         setClearing(true);
-
-        router.delete('/notifications/clear-all', {
-            preserveScroll: true,
-            onSuccess: () => {
-                setShowClearModal(false);
-                setShowNotifications(false);
-                setClearing(false);
-                setToast({
-                    message: 'All notifications cleared successfully!',
-                    type: 'success'
-                });
-            },
-            onError: () => {
-                setClearing(false);
-                setToast({
-                    message: 'Failed to clear notifications. Please try again.',
-                    type: 'error'
-                });
-            }
+        clearAll();
+        setShowClearModal(false);
+        setClearing(false);
+        setToast({
+            message: 'All notifications cleared successfully!',
+            type: 'success'
         });
     };
 
@@ -207,7 +213,7 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                                     <div className="flex gap-2 mt-2">
                                                         {unreadCount > 0 && (
                                                             <button
-                                                                onClick={markAllAsRead}
+                                                                onClick={handleMarkAllAsRead}
                                                                 className="flex-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium py-1 px-2 rounded hover:bg-indigo-50 transition-colors"
                                                             >
                                                                 Mark all read
@@ -410,7 +416,9 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
             {toast && (
                 <Toast
                     message={toast.message}
+                    description={toast.description}
                     type={toast.type}
+                    icon={toast.icon}
                     onClose={() => setToast(null)}
                 />
             )}
