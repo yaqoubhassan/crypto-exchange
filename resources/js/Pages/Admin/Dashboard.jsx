@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import AdminStatCard from '@/Components/Admin/AdminStatCard';
 import AdminAlertBadge from '@/Components/Admin/AdminAlertBadge';
 import { Link } from '@inertiajs/react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard({
     stats,
@@ -11,34 +12,14 @@ export default function AdminDashboard({
     recentOrders,
     pendingKyc,
     systemHealth,
-    revenueData
+    revenueData,
+    alerts = [] // Now coming from backend
 }) {
-    const [alerts, setAlerts] = useState([
-        {
-            id: 1,
-            type: 'security',
-            message: `${stats.failed_login_attempts || 0} failed login attempts in the last hour`,
-            severity: (stats.failed_login_attempts || 0) > 10 ? 'high' : 'medium',
-            time: 'Just now'
-        },
-        {
-            id: 2,
-            type: 'compliance',
-            message: `${stats.pending_kyc} KYC applications waiting for review`,
-            severity: stats.pending_kyc > 10 ? 'high' : 'medium',
-            time: '5 minutes ago'
-        },
-        {
-            id: 3,
-            type: 'transaction',
-            message: `${stats.pending_transactions} pending transactions require approval`,
-            severity: stats.pending_transactions > 5 ? 'medium' : 'low',
-            time: '10 minutes ago'
-        }
-    ]);
+    // Use real alerts from backend, but allow dismissal on frontend
+    const [visibleAlerts, setVisibleAlerts] = useState(alerts);
 
     const dismissAlert = (alertId) => {
-        setAlerts(alerts.filter(alert => alert.id !== alertId));
+        setVisibleAlerts(visibleAlerts.filter(alert => alert.id !== alertId));
     };
 
     const calculateTrend = (current, previous) => {
@@ -48,6 +29,34 @@ export default function AdminDashboard({
             direction: percentage > 0 ? 'up' : 'down',
             value: Math.abs(percentage)
         };
+    };
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const formatCurrency = (value) => {
+        return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+                    <p className="text-sm font-medium text-gray-900 mb-2">{formatDate(label)}</p>
+                    <p className="text-sm text-gray-600">
+                        Revenue: <span className="font-bold text-indigo-600">{formatCurrency(payload[0].value)}</span>
+                    </p>
+                    {payload[1] && (
+                        <p className="text-sm text-gray-600">
+                            Transactions: <span className="font-bold text-purple-600">{payload[1].value}</span>
+                        </p>
+                    )}
+                </div>
+            );
+        }
+        return null;
     };
 
     return (
@@ -65,15 +74,15 @@ export default function AdminDashboard({
                 </div>
             )}
 
-            {/* Alerts Section */}
-            {alerts.length > 0 && (
+            {/* Alerts Section - Now using real data from backend */}
+            {visibleAlerts.length > 0 && (
                 <div className="mb-4 sm:mb-6 bg-white rounded-xl shadow-sm border border-gray-200">
                     <div className="p-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
                         <h3 className="text-base sm:text-lg font-semibold text-gray-900">System Alerts</h3>
-                        <span className="text-xs text-gray-500">{alerts.length} active</span>
+                        <span className="text-xs text-gray-500">{visibleAlerts.length} active</span>
                     </div>
                     <div className="p-3 sm:p-4 space-y-3">
-                        {alerts.map((alert) => (
+                        {visibleAlerts.map((alert) => (
                             <AdminAlertBadge
                                 key={alert.id}
                                 alert={alert}
@@ -118,6 +127,101 @@ export default function AdminDashboard({
                     subtitle="Open positions"
                 />
             </div>
+
+            {/* Revenue Chart Section */}
+            {revenueData && revenueData.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Revenue & Transaction Trends</h3>
+                            <p className="text-sm text-gray-500 mt-1">Last 30 days performance metrics</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>
+                                <span className="text-xs text-gray-600">Revenue</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-purple-600 rounded-full"></div>
+                                <span className="text-xs text-gray-600">Transactions</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={revenueData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
+                                </linearGradient>
+                                <linearGradient id="colorTransactions" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#9333EA" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#9333EA" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                            <XAxis
+                                dataKey="date"
+                                tickFormatter={formatDate}
+                                stroke="#6B7280"
+                                style={{ fontSize: '12px' }}
+                            />
+                            <YAxis
+                                yAxisId="left"
+                                stroke="#6B7280"
+                                style={{ fontSize: '12px' }}
+                                tickFormatter={(value) => `$${value}`}
+                            />
+                            <YAxis
+                                yAxisId="right"
+                                orientation="right"
+                                stroke="#6B7280"
+                                style={{ fontSize: '12px' }}
+                            />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Area
+                                yAxisId="left"
+                                type="monotone"
+                                dataKey="revenue"
+                                stroke="#4F46E5"
+                                strokeWidth={2}
+                                fill="url(#colorRevenue)"
+                            />
+                            <Area
+                                yAxisId="right"
+                                type="monotone"
+                                dataKey="transactions"
+                                stroke="#9333EA"
+                                strokeWidth={2}
+                                fill="url(#colorTransactions)"
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+
+                    {/* Chart Statistics Summary */}
+                    <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-medium">Total Revenue</p>
+                            <p className="text-xl font-bold text-gray-900 mt-1">
+                                {formatCurrency(revenueData.reduce((sum, day) => sum + day.revenue, 0))}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-medium">Avg Daily Revenue</p>
+                            <p className="text-xl font-bold text-gray-900 mt-1">
+                                {formatCurrency(revenueData.reduce((sum, day) => sum + day.revenue, 0) / revenueData.length)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-medium">Total Transactions</p>
+                            <p className="text-xl font-bold text-gray-900 mt-1">
+                                {revenueData.reduce((sum, day) => sum + day.transactions, 0).toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Secondary Statistics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-4 sm:mb-6">

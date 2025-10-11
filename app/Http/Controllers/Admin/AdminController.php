@@ -34,6 +34,9 @@ class AdminController extends Controller
             'total_wallets' => \App\Models\Wallet::count(),
             'avg_order_value' => \App\Models\Order::where('status', 'filled')
                 ->avg(DB::raw('quantity * COALESCE(price, 0)')),
+            'failed_login_attempts' => DB::table('failed_login_attempts')
+                ->where('created_at', '>=', now()->subHour())
+                ->count(),
         ];
 
         // Get previous period statistics for trend calculation
@@ -47,6 +50,24 @@ class AdminController extends Controller
         $stats['previous_revenue'] = \App\Models\Transaction::where('created_at', '<', now()->subDay())
             ->where('status', 'completed')
             ->sum('fee');
+
+        // Get revenue data for chart (last 30 days)
+        $revenueData = \App\Models\Transaction::where('status', 'completed')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('DATE(created_at) as date, SUM(fee) as revenue, COUNT(*) as transaction_count')
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'date' => $item->date,
+                    'revenue' => (float) $item->revenue,
+                    'transactions' => $item->transaction_count,
+                ];
+            });
+
+        // Get real-time alerts
+        $alerts = $this->generateSystemAlerts($stats);
 
         // Get recent transactions
         $recentTransactions = \App\Models\Transaction::with(['user', 'cryptocurrency'])
@@ -91,8 +112,84 @@ class AdminController extends Controller
             'recentOrders' => $recentOrders,
             'pendingKyc' => $pendingKyc,
             'systemHealth' => $systemHealth,
+            'revenueData' => $revenueData,
+            'alerts' => $alerts,
         ]);
     }
+
+    private function generateSystemAlerts($stats)
+    {
+        $alerts = [];
+        $alertId = 1;
+
+        // Failed login attempts alert
+        if ($stats['failed_login_attempts'] > 0) {
+            $alerts[] = [
+                'id' => $alertId++,
+                'type' => 'security',
+                'message' => "{$stats['failed_login_attempts']} failed login attempts detected in the last hour",
+                'severity' => $stats['failed_login_attempts'] > 10 ? 'high' : ($stats['failed_login_attempts'] > 5 ? 'medium' : 'low'),
+                'time' => 'Last hour',
+                'created_at' => now()->toIso8601String(),
+            ];
+        }
+
+        // Pending KYC alert
+        if ($stats['pending_kyc'] > 0) {
+            $alerts[] = [
+                'id' => $alertId++,
+                'type' => 'compliance',
+                'message' => "{$stats['pending_kyc']} KYC applications waiting for review",
+                'severity' => $stats['pending_kyc'] > 20 ? 'high' : ($stats['pending_kyc'] > 10 ? 'medium' : 'low'),
+                'time' => 'Pending',
+                'created_at' => now()->toIso8601String(),
+            ];
+        }
+
+        // Pending transactions alert
+        if ($stats['pending_transactions'] > 0) {
+            $alerts[] = [
+                'id' => $alertId++,
+                'type' => 'transaction',
+                'message' => "{$stats['pending_transactions']} pending transactions require approval",
+                'severity' => $stats['pending_transactions'] > 10 ? 'high' : ($stats['pending_transactions'] > 5 ? 'medium' : 'low'),
+                'time' => 'Pending',
+                'created_at' => now()->toIso8601String(),
+            ];
+        }
+
+        // Active orders alert
+        if ($stats['active_orders'] > 50) {
+            $alerts[] = [
+                'id' => $alertId++,
+                'type' => 'system',
+                'message' => "High volume of active orders ({$stats['active_orders']}) - monitor system performance",
+                'severity' => $stats['active_orders'] > 100 ? 'high' : 'medium',
+                'time' => 'Current',
+                'created_at' => now()->toIso8601String(),
+            ];
+        }
+
+        // Low revenue alert (comparing to average)
+        $avgDailyRevenue = $stats['total_revenue'] / max(\App\Models\Transaction::whereDate('created_at', '>=', now()->subDays(30))->distinct('created_at')->count('created_at'), 1);
+        $todayRevenue = \App\Models\Transaction::where('status', 'completed')
+            ->whereDate('created_at', now())
+            ->sum('fee');
+
+        if ($todayRevenue < ($avgDailyRevenue * 0.5) && $avgDailyRevenue > 0) {
+            $alerts[] = [
+                'id' => $alertId++,
+                'type' => 'system',
+                'message' => "Today's revenue is below average - monitor platform activity",
+                'severity' => 'medium',
+                'time' => 'Today',
+                'created_at' => now()->toIso8601String(),
+            ];
+        }
+
+        return $alerts;
+    }
+
 
     public function transactions(Request $request)
     {

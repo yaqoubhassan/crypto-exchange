@@ -10,6 +10,7 @@ export default function DashboardHeader({ user }) {
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [toast, setToast] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   // Properly destructure notifications from props
   const { notifications = [], unreadCount = 0, flash } = usePage().props;
@@ -28,6 +29,11 @@ export default function DashboardHeader({ user }) {
       });
     }
   }, [flash]);
+
+  // Reset image error when user changes
+  useEffect(() => {
+    setImageError(false);
+  }, [user.profile_picture]);
 
   const handleLogout = () => {
     router.post(route('logout'));
@@ -105,6 +111,31 @@ export default function DashboardHeader({ user }) {
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
 
     return date.toLocaleDateString();
+  };
+
+  // Component for user avatar
+  const UserAvatar = ({ size = 'md', className = '' }) => {
+    const sizeClasses = {
+      sm: 'w-8 h-8 text-sm',
+      md: 'w-8 h-8 text-sm',
+      lg: 'w-10 h-10 text-base',
+      xl: 'w-12 h-12 text-lg'
+    };
+
+    return (
+      <div className={`${sizeClasses[size]} bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden ${className}`}>
+        {user.profile_picture ? (
+          <img
+            src={`/storage/${user.profile_picture}`}
+            alt={user.name}
+            className="w-full h-full object-cover"
+          // onError={() => setImageError(true)}
+          />
+        ) : (
+          <span>{user.name.charAt(0).toUpperCase()}</span>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -255,9 +286,7 @@ export default function DashboardHeader({ user }) {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar size="md" />
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>
                   <p className="text-xs text-gray-500">
@@ -286,9 +315,12 @@ export default function DashboardHeader({ user }) {
                     onClick={() => setShowProfileMenu(false)}
                   ></div>
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
-                    <div className="p-3 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                      <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                    <div className="p-3 border-b border-gray-100 flex items-center space-x-3">
+                      <UserAvatar size="lg" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
                     </div>
                     <div className="py-2">
                       <Link
