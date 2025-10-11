@@ -230,7 +230,9 @@ class AdminController extends Controller
     public function showTransaction($id)
     {
         $transaction = \App\Models\Transaction::with(['user', 'cryptocurrency'])
-            ->findOrFail($id);
+            ->where('transaction_id', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
 
         // Get user's wallet for this cryptocurrency
         $wallet = $transaction->user->wallets()

@@ -99,7 +99,9 @@ class OrderController extends Controller
         // Get order with all related data
         $order = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
-            ->findOrFail($id);
+            ->where('order_id', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
 
         // Get related transactions for this order
         $transactions = \App\Models\Transaction::where('user_id', $user->id)
@@ -123,7 +125,9 @@ class OrderController extends Controller
         // Find the order WITH relationships loaded
         $order = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
-            ->findOrFail($id);
+            ->where('order_id', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
 
         // Check if order can be cancelled
         if (!in_array($order->status, ['pending', 'partial'])) {
@@ -174,7 +178,7 @@ class OrderController extends Controller
             title: 'Order Cancelled',
             message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been cancelled.",
             icon: '🚫',
-            link: "/orders/{$order->id}",
+            link: "/orders/{$order->order_id}",
             data: [
                 'order_id' => $order->order_id,
                 'base_currency' => $baseCurrencySymbol,

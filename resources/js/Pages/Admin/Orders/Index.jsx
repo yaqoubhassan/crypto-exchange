@@ -8,7 +8,7 @@ import OrderCard from '@/Components/Admin/Orders/OrderCard';
 import OrderDetailModal from '@/Components/Admin/Orders/OrderDetailModal';
 import Toast from '@/Components/Trading/Toast';
 
-export default function Orders({ orders, filters = {}, stats = {} }) {
+export default function Orders({ orders, filters = {}, stats = {}, selectedOrder = null }) {
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
   const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
   const [typeFilter, setTypeFilter] = useState(filters.type || 'all');
@@ -34,6 +34,20 @@ export default function Orders({ orders, filters = {}, stats = {} }) {
       });
     }
   }, [flash]);
+
+  // ✅ AUTO-OPEN MODAL: When selectedOrder is provided from notification click
+  useEffect(() => {
+    if (selectedOrder) {
+      setViewingOrder(selectedOrder);
+
+      // Clean up URL by removing order_id parameter after modal opens
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('order_id')) {
+        url.searchParams.delete('order_id');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [selectedOrder]);
 
   // Handle search
   const handleSearch = (e) => {
@@ -245,6 +259,37 @@ export default function Orders({ orders, filters = {}, stats = {} }) {
                 <span className="font-medium">{orders.total || 0}</span> results
               </div>
               <div className="flex flex-wrap gap-2 justify-center">
+                {orders.links.map((link, index) => (
+                  <button
+                    key={index}
+                    onClick={() => link.url && router.get(link.url)}
+                    disabled={!link.url || link.active}
+                    className={`px-3 py-1 rounded-md text-sm transition-colors ${link.active
+                      ? 'bg-indigo-600 text-white'
+                      : link.url
+                        ? 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                    dangerouslySetInnerHTML={{ __html: link.label }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Pagination */}
+      <div className="hidden lg:block">
+        {orders.links && orders.links.length > 3 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+            <div className="px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{orders.from || 0}</span> to{' '}
+                <span className="font-medium">{orders.to || 0}</span> of{' '}
+                <span className="font-medium">{orders.total || 0}</span> results
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {orders.links.map((link, index) => (
                   <button
                     key={index}

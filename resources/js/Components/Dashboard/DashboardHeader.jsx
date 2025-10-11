@@ -349,6 +349,13 @@ export default function DashboardHeader({ user }) {
                       👤 My Profile
                     </Link>
                     <Link
+                      href="/security"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      🔒 Security
+                    </Link>
+                    <Link
                       href="/settings"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setShowProfileMenu(false)}
@@ -382,7 +389,7 @@ export default function DashboardHeader({ user }) {
                 Dashboard
               </Link>
               <Link
-                href="/trade"
+                href="/trading"
                 className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 Trade
@@ -392,6 +399,18 @@ export default function DashboardHeader({ user }) {
                 className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 Wallet
+              </Link>
+              <Link
+                href="/orders"
+                className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Orders
+              </Link>
+              <Link
+                href="/transactions"
+                className="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Transactions
               </Link>
             </div>
           </div>

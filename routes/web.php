@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
     //Notifications routes
     Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::get('/notifications/{id}/click', [App\Http\Controllers\NotificationController::class, 'handleClick'])->name('notifications.click');
     Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
     Route::delete('/notifications/clear-all', [App\Http\Controllers\NotificationController::class, 'clearAll'])->name('notifications.clear-all');
     Route::delete('/notifications/{id}', [App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
@@ -90,10 +91,13 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
 
         // Orders Management
         Route::get('/orders', [App\Http\Controllers\Admin\OrderController::class, 'orders'])->name('orders');
+        Route::get('/orders/{id}', [App\Http\Controllers\Admin\OrderController::class, 'showOrder'])->name('orders.show');
         Route::post('/orders/{id}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateOrderStatus'])->name('orders.status');
         Route::post('/orders/{id}/approve', [App\Http\Controllers\Admin\OrderController::class, 'approveOrder'])->name('orders.approve');
         Route::post('/orders/{id}/reject', [App\Http\Controllers\Admin\OrderController::class, 'rejectOrder'])->name('orders.reject');
         Route::get('/orders/export', [App\Http\Controllers\Admin\OrderController::class, 'exportOrders'])->name('orders.export');
+
+        Route::get('/notifications/{id}/click', [App\Http\Controllers\NotificationController::class, 'handleClick'])->name('notifications.click');
 
         // KYC management
         Route::get('/kyc', [App\Http\Controllers\Admin\AdminController::class, 'kyc'])->name('kyc');

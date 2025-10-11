@@ -80,48 +80,46 @@ class TradingController extends Controller
         $request->validate([
             'base_currency_id' => 'required|exists:cryptocurrencies,id',
             'quote_currency_id' => 'required|exists:cryptocurrencies,id',
-            'type' => 'required|in:market,limit,stop,stop_limit',
+            'type' => 'required|in:market,limit',
             'side' => 'required|in:buy,sell',
             'quantity' => 'required|numeric|min:0.00000001',
-            'price' => 'nullable|numeric|min:0.00000001',
-            'stop_price' => 'nullable|numeric|min:0.00000001',
+            'price' => 'nullable|numeric|min:0',
         ]);
 
         $user = auth()->user();
+        $baseCurrency = \App\Models\Cryptocurrency::findOrFail($request->base_currency_id);
+        $quoteCurrency = \App\Models\Cryptocurrency::findOrFail($request->quote_currency_id);
+
+        DB::beginTransaction();
 
         try {
-            DB::beginTransaction();
+            // Generate unique order ID
+            $orderId = 'ORD-' . strtoupper(uniqid());
 
-            $baseCurrency = \App\Models\Cryptocurrency::findOrFail($request->base_currency_id);
-            $quoteCurrency = \App\Models\Cryptocurrency::findOrFail($request->quote_currency_id);
-
-            // Ensure wallets exist
-            $user->createWalletIfNotExists($baseCurrency->id);
-            $user->createWalletIfNotExists($quoteCurrency->id);
-
-            // Validate price for limit orders
-            if ($request->type === 'limit' && !$request->price) {
-                return response()->json([
-                    'error' => 'Price is required for limit orders'
-                ], 400);
+            // Determine price for the order
+            $orderPrice = null;
+            if ($request->type === 'limit') {
+                $orderPrice = $request->price;
+            } else {
+                // For market orders, use current market price as reference
+                $orderPrice = $baseCurrency->current_price;
             }
 
-            // Determine the price to use for calculations
-            $orderPrice = $request->price ?? $baseCurrency->current_price;
+            // Create the order
+            $order = new \App\Models\Order([
+                'order_id' => $orderId,
+                'user_id' => $user->id,
+                'base_currency_id' => $request->base_currency_id,
+                'quote_currency_id' => $request->quote_currency_id,
+                'type' => $request->type,
+                'side' => $request->side,
+                'quantity' => $request->quantity,
+                'price' => $orderPrice,
+                'filled_quantity' => 0,
+                'status' => 'pending',
+            ]);
 
-            // Create order
-            $order = new \App\Models\Order();
-            $order->order_id = 'ORD-' . strtoupper(uniqid());
-            $order->user_id = $user->id;
-            $order->base_currency_id = $request->base_currency_id;
-            $order->quote_currency_id = $request->quote_currency_id;
-            $order->type = $request->type;
-            $order->side = $request->side;
-            $order->quantity = $request->quantity;
-            $order->price = $request->price;
-            $order->stop_price = $request->stop_price;
-
-            // Lock funds for the order
+            // Lock the required balance
             if ($request->side === 'buy') {
                 // For buy orders, lock quote currency (USD)
                 $requiredAmount = $request->quantity * $orderPrice;
@@ -157,18 +155,17 @@ class TradingController extends Controller
 
             $order->save();
 
-            // ✅ FIX: Process ALL orders through matching engine
-            // Not just market orders!
+            // Process ALL orders through matching engine
             $this->matchOrder($order);
 
-            // Create real-time notification for user
+            // ✅ Create real-time notification for user with order_id
             NotificationService::send(
                 user: $user,
                 type: 'order_placed',
                 title: 'Order Placed',
                 message: "Your {$order->side} order for {$order->quantity} {$baseCurrency->symbol} has been placed successfully.",
                 icon: '📋',
-                link: "/orders/{$order->id}",
+                link: "/orders/{$order->order_id}",
                 data: [
                     'order_id' => $order->order_id,
                     'type' => $order->type,
@@ -177,7 +174,7 @@ class TradingController extends Controller
             );
 
             // Notify ALL admins about the new order
-            $this->notifyAdminsAboutOrder($order, $user, $baseCurrency, $quoteCurrency);
+            $this->notifyAdminsAboutNewOrder($order, $user);
 
             DB::commit();
 
@@ -218,7 +215,7 @@ class TradingController extends Controller
         foreach ($oppositeOrders as $matchOrder) {
             if ($remainingQuantity <= 0) break;
 
-            // ✅ FIX: Check if prices can match
+            // Check if prices can match
             if (!$this->canMatch($order, $matchOrder)) {
                 continue; // Skip this order if prices don't match
             }
@@ -235,7 +232,7 @@ class TradingController extends Controller
             $totalFilled += $fillQuantity;
             $weightedPriceSum += $fillQuantity * $fillPrice;
 
-            // Send order_matched notification for the current order
+            // ✅ Send order_matched notification with order_id
             if ($fillQuantity > 0) {
                 NotificationService::send(
                     user: $order->user,
@@ -243,7 +240,7 @@ class TradingController extends Controller
                     title: 'Order Matched',
                     message: "{$fillQuantity} {$order->baseCurrency->symbol} of your {$order->side} order matched at \${$fillPrice}",
                     icon: '🎯',
-                    link: "/orders/{$order->id}",
+                    link: "/orders/{$order->order_id}",
                     data: [
                         'order_id' => $order->order_id,
                         'matched_quantity' => $fillQuantity,
@@ -258,14 +255,14 @@ class TradingController extends Controller
             if ($matchOrder->filled_quantity >= $matchOrder->quantity) {
                 $matchOrder->status = 'filled';
 
-                // Send order filled notification for matched order owner
+                // ✅ Send order filled notification with order_id
                 NotificationService::send(
                     user: $matchOrder->user,
                     type: 'order_filled',
                     title: 'Order Filled',
                     message: "Your {$matchOrder->side} order for {$matchOrder->quantity} {$matchOrder->baseCurrency->symbol} has been completely filled.",
                     icon: '✅',
-                    link: "/orders/{$matchOrder->id}",
+                    link: "/orders/{$matchOrder->order_id}",
                     data: [
                         'order_id' => $matchOrder->order_id,
                         'average_price' => $fillPrice,
@@ -274,14 +271,14 @@ class TradingController extends Controller
             } else {
                 $matchOrder->status = 'partial';
 
-                // Send order matched notification for partial fill
+                // ✅ Send order matched notification for partial fill with order_id
                 NotificationService::send(
                     user: $matchOrder->user,
                     type: 'order_matched',
                     title: 'Order Partially Matched',
                     message: "{$fillQuantity} {$matchOrder->baseCurrency->symbol} of your {$matchOrder->side} order matched at \${$fillPrice}",
                     icon: '🎯',
-                    link: "/orders/{$matchOrder->id}",
+                    link: "/orders/{$matchOrder->order_id}",
                     data: [
                         'order_id' => $matchOrder->order_id,
                         'matched_quantity' => $fillQuantity,
@@ -303,14 +300,14 @@ class TradingController extends Controller
         if ($order->filled_quantity >= $order->quantity) {
             $order->status = 'filled';
 
-            // Send final filled notification
+            // ✅ Send final filled notification with order_id
             NotificationService::send(
                 user: $order->user,
                 type: 'order_filled',
                 title: 'Order Filled',
                 message: "Your {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} has been completely filled.",
                 icon: '✅',
-                link: "/orders/{$order->id}",
+                link: "/orders/{$order->order_id}",
                 data: [
                     'order_id' => $order->order_id,
                     'average_price' => $order->average_price,
@@ -383,62 +380,64 @@ class TradingController extends Controller
             'processed_at' => now(),
         ]);
 
-        // Update wallet balances
-        $this->updateWalletsForTrade($actualBuyOrder, $actualSellOrder, $quantity, $price);
+        // Update buyer's cryptocurrency wallet (add crypto)
+        $buyerCryptoWallet = \App\Models\Wallet::where('user_id', $actualBuyOrder->user_id)
+            ->where('cryptocurrency_id', $actualBuyOrder->base_currency_id)
+            ->first();
+
+        if ($buyerCryptoWallet) {
+            $buyerCryptoWallet->balance += $quantity - $buyerTransaction->fee;
+            $buyerCryptoWallet->save();
+        }
+
+        // Update buyer's USD wallet (deduct USD)
+        $buyerUsdWallet = \App\Models\Wallet::where('user_id', $actualBuyOrder->user_id)
+            ->where('cryptocurrency_id', $actualBuyOrder->quote_currency_id)
+            ->first();
+
+        if ($buyerUsdWallet) {
+            $totalCost = $quantity * $price;
+            $buyerUsdWallet->locked_balance -= $totalCost;
+            $buyerUsdWallet->save();
+        }
+
+        // Update seller's cryptocurrency wallet (deduct crypto)
+        $sellerCryptoWallet = \App\Models\Wallet::where('user_id', $actualSellOrder->user_id)
+            ->where('cryptocurrency_id', $actualSellOrder->base_currency_id)
+            ->first();
+
+        if ($sellerCryptoWallet) {
+            $sellerCryptoWallet->locked_balance -= $quantity;
+            $sellerCryptoWallet->save();
+        }
+
+        // Update seller's USD wallet (add USD minus fee)
+        $sellerUsdWallet = \App\Models\Wallet::where('user_id', $actualSellOrder->user_id)
+            ->where('cryptocurrency_id', $actualSellOrder->quote_currency_id)
+            ->first();
+
+        if ($sellerUsdWallet) {
+            $totalRevenue = ($quantity * $price) - $sellerTransaction->fee;
+            $sellerUsdWallet->balance += $totalRevenue;
+            $sellerUsdWallet->save();
+        }
 
         // Notify admins about the completed trade
         $this->notifyAdminsAboutTrade($buyerTransaction, $sellerTransaction, $quantity, $price);
     }
 
-    private function updateWalletsForTrade($buyOrder, $sellOrder, $quantity, $price)
-    {
-        $totalCost = $quantity * $price;
-
-        // Buyer's wallets
-        $buyerQuoteWallet = $buyOrder->user->wallets()
-            ->where('cryptocurrency_id', $buyOrder->quote_currency_id)
-            ->first();
-        $buyerBaseWallet = $buyOrder->user->wallets()
-            ->where('cryptocurrency_id', $buyOrder->base_currency_id)
-            ->first();
-
-        // Seller's wallets
-        $sellerBaseWallet = $sellOrder->user->wallets()
-            ->where('cryptocurrency_id', $sellOrder->base_currency_id)
-            ->first();
-        $sellerQuoteWallet = $sellOrder->user->wallets()
-            ->where('cryptocurrency_id', $sellOrder->quote_currency_id)
-            ->first();
-
-        // Buyer: Unlock and deduct USD, add crypto
-        if ($buyerQuoteWallet) {
-            $buyerQuoteWallet->unlockAndDeduct($totalCost);
-        }
-        if ($buyerBaseWallet) {
-            $buyerBaseWallet->addBalance($quantity);
-        }
-
-        // Seller: Unlock and deduct crypto, add USD
-        if ($sellerBaseWallet) {
-            $sellerBaseWallet->unlockAndDeduct($quantity);
-        }
-        if ($sellerQuoteWallet) {
-            $sellerQuoteWallet->addBalance($totalCost);
-        }
-    }
-
     /**
-     * Notify all admins about a new order placement (Real-time)
+     * ✅ UPDATED: Notify admins with query parameter for modal approach
      */
-    private function notifyAdminsAboutOrder($order, $user, $baseCurrency, $quoteCurrency)
+    private function notifyAdminsAboutNewOrder($order, $user)
     {
         NotificationService::sendToAdmins(
-            type: 'admin_order_alert',
-            title: '🔔 New Order Placed',
-            message: "{$user->name} placed a {$order->side} order for {$order->quantity} {$baseCurrency->symbol} at " .
+            type: 'admin_new_order',
+            title: '📋 New Order Placed',
+            message: "{$user->name} placed a {$order->side} order for {$order->quantity} {$order->baseCurrency->symbol} at " .
                 ($order->type === 'market' ? 'market price' : '$' . number_format($order->price, 2)),
             icon: '📋',
-            link: "/admin/orders/{$order->id}",
+            link: "/admin/orders?order_id={$order->order_id}", // ✅ Query parameter for modal
             data: [
                 'order_id' => $order->order_id,
                 'user_id' => $user->id,
@@ -452,7 +451,7 @@ class TradingController extends Controller
     }
 
     /**
-     * Notify all admins about a completed trade (Real-time)
+     * ✅ Notify admins about completed trade with transaction_id
      */
     private function notifyAdminsAboutTrade($buyerTransaction, $sellerTransaction, $quantity, $price)
     {
@@ -467,7 +466,7 @@ class TradingController extends Controller
             title: '✅ Trade Executed',
             message: "Trade completed: {$buyer->name} bought {$quantity} {$crypto->symbol} from {$seller->name} at \${$price} (Total: \${$totalValue})",
             icon: '💰',
-            link: "/admin/transactions",
+            link: "/admin/transactions/{$buyerTransaction->transaction_id}",
             data: [
                 'buyer_transaction_id' => $buyerTransaction->transaction_id,
                 'seller_transaction_id' => $sellerTransaction->transaction_id,

@@ -67,11 +67,34 @@ class OrderController extends Controller
         // Get common stats for header
         $commonStats = $this->getCommonStats();
 
+        // ✅ NEW: If order_id is provided in query params, find the order for modal
+        $selectedOrder = null;
+        if ($request->has('order_id')) {
+            $selectedOrder = Order::with(['user', 'baseCurrency', 'quoteCurrency'])
+                ->where('order_id', $request->order_id)
+                ->first();
+        }
+
         return Inertia::render('Admin/Orders/Index', [
             'orders' => $orders,
             'filters' => $request->only(['search', 'status', 'type', 'side']),
             'stats' => array_merge($stats, $commonStats),
+            'selectedOrder' => $selectedOrder, // ✅ Pass selected order to open modal
         ]);
+    }
+
+    /**
+     * ✅ UPDATED: Redirect to orders page with order_id parameter to open modal
+     */
+    public function showOrder($id)
+    {
+        // Try to find by order_id first, then by database id
+        $order = Order::where('order_id', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
+
+        // Redirect to orders page with order_id as query parameter
+        return redirect()->route('admin.orders', ['order_id' => $order->order_id]);
     }
 
     public function updateOrderStatus(Request $request, $id)
@@ -80,7 +103,7 @@ class OrderController extends Controller
             'status' => 'required|in:pending,partial,filled,cancelled,expired'
         ]);
 
-        $order = \App\Models\Order::findOrFail($id);
+        $order = Order::where('order_id', $id)->orWhere('id', $id)->firstOrFail();
         $oldStatus = $order->status;
         $order->status = $request->status;
 
@@ -102,7 +125,7 @@ class OrderController extends Controller
             title: 'Order Status Updated',
             message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} status changed from {$oldStatus} to {$request->status}.",
             icon: '📋',
-            link: "/orders/{$order->id}",
+            link: "/orders/{$order->order_id}",
             data: [
                 'order_id' => $order->order_id,
                 'old_status' => $oldStatus,
@@ -124,7 +147,7 @@ class OrderController extends Controller
 
     public function approveOrder(Request $request, $id)
     {
-        $order = Order::with(['user', 'baseCurrency', 'quoteCurrency'])->findOrFail($id);
+        $order = Order::where('order_id', $id)->orWhere('id', $id)->firstOrFail();
 
         // Validate order can be approved
         if (!in_array($order->status, ['pending', 'partial'])) {
@@ -231,7 +254,7 @@ class OrderController extends Controller
                 title: 'Order Approved',
                 message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been approved and is now active.",
                 icon: '✅',
-                link: "/orders/{$order->id}",
+                link: "/orders/{$order->order_id}",
                 data: [
                     'order_id' => $order->order_id,
                     'approved_by' => auth()->user()->name,
@@ -268,7 +291,7 @@ class OrderController extends Controller
             'reason' => 'required|string|min:10|max:500'
         ]);
 
-        $order = \App\Models\Order::with(['user', 'baseCurrency', 'quoteCurrency'])->findOrFail($id);
+        $order = Order::where('order_id', $id)->orWhere('id', $id)->firstOrFail();
 
         // Validate order can be rejected
         if (!in_array($order->status, ['pending', 'partial'])) {
@@ -297,7 +320,7 @@ class OrderController extends Controller
                 title: 'Order Rejected',
                 message: "Your {$order->side} order for {$order->quantity} {$baseCurrencySymbol}/{$quoteCurrencySymbol} has been rejected. Reason: {$request->reason}",
                 icon: '❌',
-                link: "/orders/{$order->id}",
+                link: "/orders/{$order->order_id}",
                 data: [
                     'order_id' => $order->order_id,
                     'rejected_by' => auth()->user()->name,

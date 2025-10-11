@@ -57,6 +57,22 @@ class NotificationController extends Controller
             : "No notifications to clear");
     }
 
+    public function handleClick($id)
+    {
+        $notification = auth()->user()->notifications()->findOrFail($id);
+
+        // Mark as read
+        $notification->markAsRead();
+
+        // Redirect to the notification's link if it exists
+        if ($notification->link) {
+            return redirect($notification->link);
+        }
+
+        // If no link, just go back
+        return back();
+    }
+
     /**
      * Delete a single notification
      */
