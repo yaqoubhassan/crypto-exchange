@@ -70,18 +70,36 @@ export default function DashboardHeader({ user }) {
     router.post(route('logout'));
   };
 
-  const handleNotificationClick = (notification) => {
-    // Mark as read
+  const handleNotificationClick = async (notification) => {
+
+    // Close the dropdown immediately for better UX
+    setShowNotifications(false);
+
+    // Mark as read using the hook (if not already read)
     if (!notification.is_read) {
-      markAsRead(notification.id);
+
+      // Wait for the mark as read to complete before navigating
+      await new Promise((resolve) => {
+        router.post(route('notifications.read', notification.id), {}, {
+          preserveScroll: true,
+          preserveState: false, // Changed to false to ensure proper update
+          onSuccess: () => {
+            resolve();
+          },
+          onError: (errors) => {
+            console.error('Error marking as read:', errors);
+            resolve(); // Still navigate even if marking fails
+          }
+        });
+      });
+    } else {
+      console.log('Notification already read, skipping markAsRead');
     }
 
-    // Navigate to link if exists
+    // Navigate to the link if it exists
     if (notification.link) {
       router.visit(notification.link);
     }
-
-    setShowNotifications(false);
   };
 
   const openClearModal = () => {

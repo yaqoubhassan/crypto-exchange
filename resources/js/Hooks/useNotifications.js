@@ -108,17 +108,31 @@ export function useNotifications() {
   }, [initialNotifications, initialUnreadCount]);
 
   const markAsRead = useCallback((notificationId) => {
-    router.post(`/notifications/${notificationId}/read`, {}, {
+
+    // Optimistically update the UI first
+    setNotifications(prev =>
+      prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    // Then send the request to the server
+    router.post(route('notifications.read', notificationId), {}, {
       preserveScroll: true,
       preserveState: true,
-      onSuccess: () => {
+      only: ['notifications', 'unreadCount'], // Only reload these props
+      onSuccess: (page) => {
+        console.log('Successfully marked as read on server', page);
+      },
+      onError: (errors) => {
+        console.error('Error marking as read:', errors);
+        // Revert optimistic update on error
         setNotifications(prev =>
-          prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+          prev.map(n => n.id === notificationId ? { ...n, is_read: false } : n)
         );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount(prev => prev + 1);
       }
     });
-  }, []);
+  }, [notifications]);
 
   const markAllAsRead = useCallback(() => {
     router.post('/notifications/mark-all-read', {}, {
