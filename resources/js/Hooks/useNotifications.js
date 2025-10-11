@@ -57,33 +57,36 @@ export function useNotifications() {
   useEffect(() => {
     if (!auth?.user?.id) return;
 
-    // Import Echo dynamically
-    import('../echo').then(({ default: Echo }) => {
-      // Listen to private user channel for notifications
-      const channel = Echo.private(`user.${auth.user.id}`);
+    // Check if Echo is available
+    if (!window.Echo) {
+      console.error('Echo is not initialized. Make sure echo.js is imported in your app.');
+      return;
+    }
 
-      channel.listen('.notification.sent', (data) => {
-        console.log('New notification received:', data);
+    // Listen to private user channel for notifications
+    const channel = window.Echo.private(`user.${auth.user.id}`);
 
-        // Update notifications list
-        setNotifications(prev => [data, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        setNewNotification(data);
+    channel.listen('.notification.sent', (data) => {
+      console.log('New notification received:', data);
 
-        // Play sound and show browser notification
-        playNotificationSound();
-        showBrowserNotification(data);
+      // Update notifications list
+      setNotifications(prev => [data, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      setNewNotification(data);
 
-        // Clear the new notification indicator after 5 seconds
-        setTimeout(() => setNewNotification(null), 5000);
-      });
+      // Play sound and show browser notification
+      playNotificationSound();
+      showBrowserNotification(data);
 
-      // Cleanup on unmount
-      return () => {
-        channel.stopListening('.notification.sent');
-        Echo.leave(`user.${auth.user.id}`);
-      };
+      // Clear the new notification indicator after 5 seconds
+      setTimeout(() => setNewNotification(null), 5000);
     });
+
+    // Cleanup on unmount
+    return () => {
+      channel.stopListening('.notification.sent');
+      window.Echo.leave(`user.${auth.user.id}`);
+    };
   }, [auth?.user?.id, playNotificationSound, showBrowserNotification]);
 
   // Sync with server data when page props change
