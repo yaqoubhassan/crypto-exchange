@@ -31,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'kyc_status',
         'two_factor_enabled',
         'last_login_at',
+        'last_login_ip',
     ];
 
     /**

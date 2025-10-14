@@ -271,7 +271,7 @@ class AdminController extends Controller
             'total_volume' => \App\Models\Transaction::where('user_id', $transaction->user_id)
                 ->where('status', 'completed')
                 ->sum(DB::raw('amount * COALESCE(price, 0)')),
-            'account_age_days' => now()->diffInDays($transaction->user->created_at),
+            'account_age_days' => max(1, (int) floor($transaction->user->created_at->diffInDays(now()))),
         ];
 
         // Get common stats for header

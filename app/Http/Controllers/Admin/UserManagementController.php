@@ -80,7 +80,8 @@ class UserManagementController extends Controller
 
         // Calculate user statistics
         $stats = [
-            'account_age_days' => $user->created_at->diffInDays(now()),
+            // 'account_age_days' => (int) floor(now()->diffInDays($transaction->user->created_at)),
+            'account_age_days' => (int) floor($user->created_at->diffInDays(now())),
             'email_verified' => !is_null($user->email_verified_at),
             'total_transactions' => $user->transactions()->count(),
             'total_deposits' => $user->transactions()->where('type', 'deposit')->sum('amount'),

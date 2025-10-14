@@ -280,7 +280,7 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
       </div>
 
       {/* Desktop Pagination */}
-      <div className="hidden lg:block">
+      {/* <div className="hidden lg:block">
         {orders.links && orders.links.length > 3 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
             <div className="px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -308,7 +308,7 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
             </div>
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Order Detail Modal */}
       <OrderDetailModal
