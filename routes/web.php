@@ -58,11 +58,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/notifications/{id}', [App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
 
     // Security routes
-    Route::get('/security', function () {
-        return Inertia::render('Security/Index', [
-            'twoFactorEnabled' => auth()->user()->two_factor_enabled ?? false,
-        ]);
-    })->name('security.index');
+    Route::get('/security', [App\Http\Controllers\SecurityController::class, 'index'])->name('security.index');
+    Route::post('/security/revoke-session/{sessionId}', [App\Http\Controllers\SecurityController::class, 'revokeSession'])->name('security.revoke-session');
+    Route::post('/security/logout-others', [App\Http\Controllers\SecurityController::class, 'logoutOtherSessions'])->name('security.logout-others');
 });
 
 // Admin routes
