@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                     'email_verified_at' => $request->user()->email_verified_at,
                     'profile_picture' => $request->user()->profile_picture ?? null,
                     'created_at' => $request->user()->created_at,
+                    'theme' => $request->user()->theme ?? 'light',
                 ] : null,
             ],
             // Lazy load notifications - only fetched when accessed

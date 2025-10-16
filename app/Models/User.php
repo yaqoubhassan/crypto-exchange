@@ -32,6 +32,22 @@ class User extends Authenticatable implements MustVerifyEmail
         'two_factor_enabled',
         'last_login_at',
         'last_login_ip',
+
+        // Notification preferences
+        'email_notifications_enabled',
+        'email_trading_alerts',
+        'email_wallet_transactions',
+        'email_security_alerts',
+        'email_marketing',
+        'browser_notifications_enabled',
+        'browser_trading_alerts',
+        'browser_wallet_transactions',
+
+        // Display preferences
+        'theme',
+        'language',
+        'timezone',
+        'currency_display',
     ];
 
     /**
@@ -56,6 +72,14 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_admin' => 'boolean',
         'is_active' => 'boolean',
         'two_factor_enabled' => 'boolean',
+        'email_notifications_enabled' => 'boolean',
+        'email_trading_alerts' => 'boolean',
+        'email_wallet_transactions' => 'boolean',
+        'email_security_alerts' => 'boolean',
+        'email_marketing' => 'boolean',
+        'browser_notifications_enabled' => 'boolean',
+        'browser_trading_alerts' => 'boolean',
+        'browser_wallet_transactions' => 'boolean',
     ];
 
     /**

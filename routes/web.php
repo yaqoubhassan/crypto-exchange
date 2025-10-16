@@ -61,6 +61,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/security', [App\Http\Controllers\SecurityController::class, 'index'])->name('security.index');
     Route::post('/security/revoke-session/{sessionId}', [App\Http\Controllers\SecurityController::class, 'revokeSession'])->name('security.revoke-session');
     Route::post('/security/logout-others', [App\Http\Controllers\SecurityController::class, 'logoutOtherSessions'])->name('security.logout-others');
+
+    // Settings routes
+    Route::get('/settings', [App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings/notifications', [App\Http\Controllers\SettingsController::class, 'updateNotifications'])->name('settings.notifications');
+    Route::post('/settings/display', [App\Http\Controllers\SettingsController::class, 'updateDisplay'])->name('settings.display');
 });
 
 // Admin routes
