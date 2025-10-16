@@ -53,12 +53,15 @@ class Wallet extends Model
      */
     public function lockBalance($amount)
     {
-        if ($this->balance >= $amount) {
-            $this->balance -= $amount;
-            $this->locked_balance += $amount;
-            return $this->save();
+        if ($this->balance < $amount) {
+            throw new \Exception('Insufficient balance to lock');
         }
-        return false;
+
+        $this->balance -= $amount;
+        $this->locked_balance += $amount;
+        $this->save();
+
+        return $this;
     }
 
     /**
@@ -67,12 +70,15 @@ class Wallet extends Model
      */
     public function unlockBalance($amount)
     {
-        if ($this->locked_balance >= $amount) {
-            $this->locked_balance -= $amount;
-            $this->balance += $amount;
-            return $this->save();
+        if ($this->locked_balance < $amount) {
+            throw new \Exception('Insufficient locked balance');
         }
-        return false;
+
+        $this->locked_balance -= $amount;
+        $this->balance += $amount;
+        $this->save();
+
+        return $this;
     }
 
     /**
@@ -95,11 +101,14 @@ class Wallet extends Model
      */
     public function deductBalance($amount)
     {
-        if ($this->balance >= $amount) {
-            $this->balance -= $amount;
-            return $this->save();
+        if ($this->balance < $amount) {
+            throw new \Exception('Insufficient balance');
         }
-        return false;
+
+        $this->balance -= $amount;
+        $this->save();
+
+        return $this;
     }
 
     /**
@@ -109,6 +118,8 @@ class Wallet extends Model
     public function addBalance($amount)
     {
         $this->balance += $amount;
-        return $this->save();
+        $this->save();
+
+        return $this;
     }
 }

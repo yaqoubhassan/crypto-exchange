@@ -75,6 +75,8 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
 
         // User management
         Route::get('/users', [App\Http\Controllers\Admin\UserManagementController::class, 'index'])->name('users.index');
+        Route::post('/users', [App\Http\Controllers\Admin\UserManagementController::class, 'store'])->name('users.store');
+        Route::get('/users/create', [App\Http\Controllers\Admin\UserManagementController::class, 'create'])->name('users.create');
         Route::get('/users/export', [App\Http\Controllers\Admin\UserManagementController::class, 'export'])->name('users.export');
         Route::get('/users/{user}', [App\Http\Controllers\Admin\UserManagementController::class, 'show'])->name('users.show');
         Route::post('/users/{user}/status', [App\Http\Controllers\Admin\UserManagementController::class, 'updateStatus'])->name('users.status');
@@ -82,6 +84,10 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
         Route::post('/users/{user}/reset-password', [App\Http\Controllers\Admin\UserManagementController::class, 'resetPassword'])->name('users.reset-password');
         Route::post('/users/bulk/status', [App\Http\Controllers\Admin\UserManagementController::class, 'bulkUpdateStatus'])->name('users.bulk-status');
         Route::delete('/users/{user}', [App\Http\Controllers\Admin\UserManagementController::class, 'destroy'])->name('users.destroy');
+
+        // Wallet management
+        Route::post('/users/{user}/credit-wallet', [App\Http\Controllers\Admin\UserManagementController::class, 'creditWallet'])->name('users.credit-wallet');
+        Route::get('/users/{user}/wallets', [App\Http\Controllers\Admin\UserManagementController::class, 'wallets'])->name('users.wallets');
 
         // Transaction management
         Route::get('/transactions', [App\Http\Controllers\Admin\AdminController::class, 'transactions'])->name('transactions');

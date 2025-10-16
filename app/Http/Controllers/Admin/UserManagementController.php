@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Models\Wallet;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Inertia\Inertia;
 
 class UserManagementController extends Controller
 {
@@ -65,6 +67,195 @@ class UserManagementController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        $cryptocurrencies = \App\Models\Cryptocurrency::where('is_active', true)->get();
+
+        return Inertia::render('Admin/Users/Create', [
+            'cryptocurrencies' => $cryptocurrencies,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'phone' => 'nullable|string|max:20',
+            'location' => 'nullable|string|max:255',
+            'status' => 'required|in:active,suspended,pending',
+            'is_admin' => 'boolean',
+
+            // Initial wallet credit (optional)
+            'credit_wallet' => 'boolean',
+            'cryptocurrency_id' => 'required_if:credit_wallet,true|exists:cryptocurrencies,id',
+            'credit_amount' => 'required_if:credit_wallet,true|numeric|min:0',
+            'credit_notes' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Create user
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone' => $request->phone,
+                'location' => $request->location,
+                'status' => $request->status,
+                'is_admin' => $request->is_admin ?? false,
+                'email_verified_at' => now(), // Auto-verify admin-created accounts
+            ]);
+
+            // If admin wants to credit wallet during creation
+            if ($request->credit_wallet && $request->credit_amount > 0) {
+                $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
+
+                // Create wallet for the user
+                $wallet = $user->createWalletIfNotExists($cryptocurrency->id);
+
+                // Create a transaction record
+                $transaction = Transaction::create([
+                    'transaction_id' => 'TXN-' . strtoupper(uniqid()),
+                    'user_id' => $user->id,
+                    'cryptocurrency_id' => $cryptocurrency->id,
+                    'type' => 'deposit',
+                    'amount' => $request->credit_amount,
+                    'fee' => 0,
+                    'status' => 'completed',
+                    'processed_at' => now(),
+                    'notes' => $request->credit_notes ?? 'Initial wallet credit by admin during account creation',
+                ]);
+
+                // Credit the wallet
+                $wallet->addBalance($request->credit_amount);
+
+                // Notify user
+                NotificationService::send(
+                    user: $user,
+                    type: 'wallet_credited',
+                    title: 'Welcome! Wallet Credited',
+                    message: "Your account has been created and credited with {$request->credit_amount} {$cryptocurrency->symbol}.",
+                    icon: '💰',
+                    link: '/wallet',
+                    data: [
+                        'transaction_id' => $transaction->transaction_id,
+                        'amount' => $request->credit_amount,
+                        'cryptocurrency' => $cryptocurrency->symbol,
+                    ]
+                );
+            }
+
+            // Send welcome email (optional)
+            // Mail::to($user->email)->send(new WelcomeEmail($user, $request->password));
+
+            DB::commit();
+
+            return redirect()->route('admin.users.show', $user)
+                ->with('success', 'User account created successfully!' .
+                    ($request->credit_wallet ? ' Wallet has been credited.' : ''));
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()
+                ->withInput()
+                ->withErrors(['error' => 'Failed to create user: ' . $e->getMessage()]);
+        }
+    }
+
+    public function creditWallet(Request $request, User $user)
+    {
+        $request->validate([
+            'cryptocurrency_id' => 'required|exists:cryptocurrencies,id',
+            'amount' => 'required|numeric|min:0.00000001',
+            'notes' => 'nullable|string|max:500',
+            'notify_user' => 'boolean',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $cryptocurrency = \App\Models\Cryptocurrency::findOrFail($request->cryptocurrency_id);
+
+            // Get or create wallet
+            $wallet = $user->createWalletIfNotExists($cryptocurrency->id);
+
+            // Create transaction record
+            $transaction = Transaction::create([
+                'transaction_id' => 'TXN-' . strtoupper(uniqid()),
+                'user_id' => $user->id,
+                'cryptocurrency_id' => $cryptocurrency->id,
+                'type' => 'deposit',
+                'amount' => $request->amount,
+                'fee' => 0,
+                'status' => 'completed',
+                'processed_at' => now(),
+                'notes' => $request->notes ?? 'Manual wallet credit by admin: ' . auth()->user()->name,
+            ]);
+
+            // Credit the wallet
+            $wallet->addBalance($request->amount);
+
+            // Notify user if requested
+            if ($request->notify_user) {
+                \App\Services\NotificationService::send(
+                    user: $user,
+                    type: 'wallet_credited',
+                    title: 'Wallet Credited',
+                    message: "Your wallet has been credited with {$request->amount} {$cryptocurrency->symbol}.",
+                    icon: '💰',
+                    link: '/wallet',
+                    data: [
+                        'transaction_id' => $transaction->transaction_id,
+                        'amount' => $request->amount,
+                        'cryptocurrency' => $cryptocurrency->symbol,
+                    ]
+                );
+            }
+
+
+            DB::commit();
+
+            return back()->with('success', "Successfully credited {$request->amount} {$cryptocurrency->symbol} to {$user->name}'s wallet!");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->withErrors(['error' => 'Failed to credit wallet: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * View user's wallets
+     */
+    public function wallets(User $user)
+    {
+        $wallets = $user->wallets()
+            ->with('cryptocurrency')
+            ->get()
+            ->map(function ($wallet) {
+                return [
+                    'id' => $wallet->id,
+                    'cryptocurrency' => $wallet->cryptocurrency,
+                    'balance' => $wallet->balance,
+                    'locked_balance' => $wallet->locked_balance,
+                    'total_balance' => $wallet->balance + $wallet->locked_balance,
+                    'value_usd' => ($wallet->balance + $wallet->locked_balance) * ($wallet->cryptocurrency->current_price ?? 0),
+                    'updated_at' => $wallet->updated_at,
+                ];
+            });
+
+        $totalValue = $wallets->sum('value_usd');
+
+        return Inertia::render('Admin/Users/Wallets', [
+            'user' => $user,
+            'wallets' => $wallets,
+            'totalValue' => $totalValue,
+            'cryptocurrencies' => \App\Models\Cryptocurrency::where('is_active', true)->get(),
+        ]);
+    }
+
     /**
      * Display detailed user information
      */
@@ -72,7 +263,7 @@ class UserManagementController extends Controller
     {
         // Load relationships
         $user->load([
-            'wallets', // Load all wallets
+            'wallets.cryptocurrency',
             'transactions' => function ($query) {
                 $query->latest()->limit(10);
             }
@@ -80,19 +271,24 @@ class UserManagementController extends Controller
 
         // Calculate user statistics
         $stats = [
-            // 'account_age_days' => (int) floor(now()->diffInDays($transaction->user->created_at)),
             'account_age_days' => (int) floor($user->created_at->diffInDays(now())),
             'email_verified' => !is_null($user->email_verified_at),
             'total_transactions' => $user->transactions()->count(),
             'total_deposits' => $user->transactions()->where('type', 'deposit')->sum('amount'),
             'total_withdrawals' => $user->transactions()->where('type', 'withdrawal')->sum('amount'),
             'total_wallets' => $user->wallets()->count(),
-            'total_balance' => $user->getTotalBalance(), // Total across all wallets
+            'total_balance' => $user->getTotalBalance(),
         ];
+
+        // Get active cryptocurrencies for wallet credit modal
+        $cryptocurrencies = \App\Models\Cryptocurrency::where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/Users/Show', [
             'user' => $user,
             'stats' => $stats,
+            'cryptocurrencies' => $cryptocurrencies,
         ]);
     }
 

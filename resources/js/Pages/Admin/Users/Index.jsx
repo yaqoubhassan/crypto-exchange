@@ -149,6 +149,25 @@ export default function UsersIndex({ auth, users, filters, stats }) {
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                    <div className="mb-6 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+                            <p className="mt-1 text-sm text-gray-600">
+                                Manage all users, accounts, and permissions
+                            </p>
+                        </div>
+
+                        {/* Add this Create User button */}
+                        <Link
+                            href={route('admin.users.create')}
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create New User
+                        </Link>
+                    </div>
                     {/* Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">

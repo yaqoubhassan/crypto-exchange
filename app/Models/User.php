@@ -215,6 +215,13 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getTotalBalance()
     {
-        return $this->wallets()->sum('balance');
+        // return $this->wallets()->sum('balance');
+        return $this->wallets()
+            ->with('cryptocurrency')
+            ->get()
+            ->sum(function ($wallet) {
+                $price = $wallet->cryptocurrency->current_price ?? 0;
+                return ($wallet->balance + $wallet->locked_balance) * $price;
+            });
     }
 }
