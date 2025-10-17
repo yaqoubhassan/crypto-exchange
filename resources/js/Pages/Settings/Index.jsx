@@ -51,7 +51,7 @@ export default function SettingsIndex({ settings }) {
 
   const tabs = [
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'display', label: 'Display', icon: Palette },
+    // { id: 'display', label: 'Display', icon: Palette },
   ];
 
   return (

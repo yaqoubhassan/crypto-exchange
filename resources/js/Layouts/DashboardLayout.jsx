@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import DashboardHeader from '@/Components/Dashboard/DashboardHeader';
 import Sidebar from '@/Components/Dashboard/Sidebar';
+import { ThemeProvider } from '@/Components/ThemeProvider';
 
 export default function DashboardLayout({ children, title }) {
   const { auth } = usePage().props;
@@ -12,20 +13,22 @@ export default function DashboardLayout({ children, title }) {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="text-center">
-          <div className="text-4xl mb-4">⏳</div>
-          <p className="text-gray-600">Loading...</p>
+      <ThemeProvider>
+        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
+          <div className="text-center">
+            <div className="text-4xl mb-4">⏳</div>
+            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
   return (
-    <>
+    <ThemeProvider>
       <Head title={title || 'Dashboard'} />
 
-      <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
         {/* Sidebar */}
         <Sidebar
           isOpen={sidebarOpen}
@@ -45,11 +48,11 @@ export default function DashboardLayout({ children, title }) {
           />
 
           {/* Main Content */}
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
             {children}
           </div>
         </div>
       </div>
-    </>
+    </ThemeProvider>
   );
 }

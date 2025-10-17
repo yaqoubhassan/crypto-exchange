@@ -260,4 +260,54 @@ class User extends Authenticatable implements MustVerifyEmail
                 return ($wallet->balance + $wallet->locked_balance) * $price;
             });
     }
+
+    /**
+     * Check if user wants email notifications for a specific type
+     */
+    public function wantsEmailNotification(string $type): bool
+    {
+        if (!$this->email_notifications_enabled) {
+            return false;
+        }
+
+        // Map notification types to preferences
+        $typeMap = [
+            'trading' => 'email_trading_alerts',
+            'wallet' => 'email_wallet_transactions',
+            'security' => 'email_security_alerts',
+            'marketing' => 'email_marketing',
+        ];
+
+        foreach ($typeMap as $category => $preference) {
+            if (str_contains($type, $category)) {
+                return $this->$preference ?? true;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if user wants browser notifications for a specific type
+     */
+    public function wantsBrowserNotification(string $type): bool
+    {
+        if (!$this->browser_notifications_enabled) {
+            return false;
+        }
+
+        // Map notification types to preferences
+        $typeMap = [
+            'trading' => 'browser_trading_alerts',
+            'wallet' => 'browser_wallet_transactions',
+        ];
+
+        foreach ($typeMap as $category => $preference) {
+            if (str_contains($type, $category)) {
+                return $this->$preference ?? true;
+            }
+        }
+
+        return true;
+    }
 }

@@ -1,55 +1,44 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 
-const ThemeContext = createContext();
-
-export function ThemeProvider({ children, theme: initialTheme = 'light' }) {
-  const [theme, setTheme] = useState(() => {
-    // Get theme preference
-    if (initialTheme === 'system') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return initialTheme;
-  });
+export function ThemeProvider({ children }) {
+  const { auth } = usePage().props;
+  const userTheme = auth?.user?.theme || 'light';
 
   useEffect(() => {
-    // Apply theme to document
     const root = window.document.documentElement;
 
-    if (theme === 'dark') {
+    // Determine the actual theme to apply
+    let appliedTheme = userTheme;
+
+    if (userTheme === 'system') {
+      appliedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    // Apply theme
+    if (appliedTheme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-  }, [theme]);
 
-  useEffect(() => {
-    // Handle system theme preference
-    if (initialTheme === 'system') {
+    // Listen for system theme changes if using system preference
+    if (userTheme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
       const handleChange = (e) => {
-        setTheme(e.matches ? 'dark' : 'light');
+        if (e.matches) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
       };
 
       mediaQuery.addEventListener('change', handleChange);
 
       return () => mediaQuery.removeEventListener('change', handleChange);
-    } else {
-      setTheme(initialTheme);
     }
-  }, [initialTheme]);
+  }, [userTheme]);
 
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
-  }
-  return context;
+  return <>{children}</>;
 }

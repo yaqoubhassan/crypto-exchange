@@ -164,6 +164,10 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
         Route::post('/support/{id}/respond', [App\Http\Controllers\Admin\SupportController::class, 'respond'])->name('support.respond');
         Route::post('/support/{id}/priority', [App\Http\Controllers\Admin\SupportController::class, 'updatePriority'])->name('support.priority');
         Route::delete('/support/{id}', [App\Http\Controllers\Admin\SupportController::class, 'destroy'])->name('support.destroy');
+
+        Route::get('/settings', [App\Http\Controllers\Admin\AdminSettingsController::class, 'index'])->name('settings.index');
+        Route::post('/settings/notifications', [App\Http\Controllers\Admin\AdminSettingsController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::post('/settings/display', [App\Http\Controllers\Admin\AdminSettingsController::class, 'updateDisplay'])->name('settings.display');
     });
 
 require __DIR__ . '/auth.php';

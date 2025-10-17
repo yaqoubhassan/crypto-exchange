@@ -12,7 +12,6 @@ export default function AdminSidebar({ activeTab, setActiveTab, isOpen, setIsOpe
         { id: 'kyc', name: 'KYC Verification', icon: '🔍', route: '/admin/kyc' },
         { id: 'cryptocurrencies', name: 'Cryptocurrencies', icon: '💰', route: '/admin/cryptocurrencies' },
         { id: 'reports', name: 'Reports', icon: '📈', route: '/admin/reports' },
-        { id: 'settings', name: 'Settings', icon: '⚙️', route: '/admin/settings' },
         {
             id: 'support',
             name: 'Support Tickets',
