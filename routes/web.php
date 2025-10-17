@@ -59,8 +59,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/notifications/clear-all', [App\Http\Controllers\NotificationController::class, 'clearAll'])->name('notifications.clear-all');
     Route::delete('/notifications/{id}', [App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
 
-    // Security routes
+    // Security page
     Route::get('/security', [App\Http\Controllers\SecurityController::class, 'index'])->name('security.index');
+    Route::patch('/security/password', [App\Http\Controllers\SecurityController::class, 'updatePassword'])->name('security.password.update');
+
+    // Two-Factor Authentication for normal users
+    Route::post('/security/two-factor/enable', [App\Http\Controllers\SecurityController::class, 'enableTwoFactor'])->name('security.two-factor.enable');
+    Route::post('/security/two-factor/verify', [App\Http\Controllers\SecurityController::class, 'verifyTwoFactor'])->name('security.two-factor.verify');
+    Route::post('/security/two-factor/disable', [App\Http\Controllers\SecurityController::class, 'disableTwoFactor'])->name('security.two-factor.disable');
+
+    // Session Management
     Route::post('/security/revoke-session/{sessionId}', [App\Http\Controllers\SecurityController::class, 'revokeSession'])->name('security.revoke-session');
     Route::post('/security/logout-others', [App\Http\Controllers\SecurityController::class, 'logoutOtherSessions'])->name('security.logout-others');
 
