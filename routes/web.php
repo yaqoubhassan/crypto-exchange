@@ -1,10 +1,12 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -82,6 +84,14 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
     ->group(function () {
         // Dashboard
         Route::get('/dashboard', [App\Http\Controllers\Admin\AdminController::class, 'dashboard'])->name('dashboard');
+
+        // Admin Profile Routes
+        Route::get('/profile', [AdminProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/picture', [AdminProfileController::class, 'uploadProfilePicture'])->name('profile.picture.upload');
+        Route::delete('/profile/picture', [AdminProfileController::class, 'removeProfilePicture'])->name('profile.picture.remove');
+        Route::patch('/profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password.update');
+        Route::get('/profile/activity', [AdminProfileController::class, 'activityLog'])->name('profile.activity');
 
         // User management
         Route::get('/users', [App\Http\Controllers\Admin\UserManagementController::class, 'index'])->name('users.index');
