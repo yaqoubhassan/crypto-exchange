@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ShareNotifications::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
+        $middleware->alias([
+            'user.only' => \App\Http\Middleware\UserOnlyMiddleware::class,
+        ]);
     })
     ->withProviders([
         \App\Providers\BroadcastServiceProvider::class,
