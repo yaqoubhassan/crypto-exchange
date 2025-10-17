@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\SupportTicket;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 
 class SupportController extends Controller
@@ -69,7 +70,47 @@ class SupportController extends Controller
             $ticket->update(['attachments' => $attachments]);
         }
 
+        // Send notification to all admins
+        $this->notifyAdmins($ticket);
+
         return redirect()->back()->with('success', 'Support ticket created successfully. Ticket #' . $ticket->ticket_number);
+    }
+
+    /**
+     * Send notification to admins about new support ticket
+     */
+    protected function notifyAdmins(SupportTicket $ticket)
+    {
+        $user = $ticket->user;
+
+        // Determine icon and priority text
+        $icon = match ($ticket->priority) {
+            'urgent' => '🔴',
+            'high' => '🟠',
+            'medium' => '🟡',
+            'low' => '🟢',
+            default => '🎫'
+        };
+
+        $priorityText = ucfirst($ticket->priority);
+
+        // Send notification to all admins
+        NotificationService::sendToAdmins(
+            type: 'support_ticket',
+            title: "New {$priorityText} Priority Support Ticket",
+            message: "{$user->name} created a new support ticket: {$ticket->subject}",
+            icon: $icon,
+            link: "/admin/support/{$ticket->id}",
+            data: [
+                'ticket_id' => $ticket->id,
+                'ticket_number' => $ticket->ticket_number,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'priority' => $ticket->priority,
+                'category' => $ticket->category,
+                'subject' => $ticket->subject,
+            ]
+        );
     }
 
     /**
