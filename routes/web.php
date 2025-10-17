@@ -93,6 +93,19 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
         Route::patch('/profile/password', [AdminProfileController::class, 'updatePassword'])->name('profile.password.update');
         Route::get('/profile/activity', [AdminProfileController::class, 'activityLog'])->name('profile.activity');
 
+        // Admin Security Routes
+        Route::get('/security', [App\Http\Controllers\Admin\AdminSecurityController::class, 'index'])->name('security.index');
+        Route::patch('/security/password', [App\Http\Controllers\Admin\AdminSecurityController::class, 'updatePassword'])->name('security.password.update');
+
+        // Two-Factor Authentication
+        Route::post('/security/two-factor/enable', [App\Http\Controllers\Admin\AdminSecurityController::class, 'enableTwoFactor'])->name('security.two-factor.enable');
+        Route::post('/security/two-factor/verify', [App\Http\Controllers\Admin\AdminSecurityController::class, 'verifyTwoFactor'])->name('security.two-factor.verify');
+        Route::post('/security/two-factor/disable', [App\Http\Controllers\Admin\AdminSecurityController::class, 'disableTwoFactor'])->name('security.two-factor.disable');
+
+        // Session Management
+        Route::post('/security/revoke-session/{sessionId}', [App\Http\Controllers\Admin\AdminSecurityController::class, 'revokeSession'])->name('security.revoke-session');
+        Route::post('/security/logout-others', [App\Http\Controllers\Admin\AdminSecurityController::class, 'logoutOtherSessions'])->name('security.logout-others');
+
         // User management
         Route::get('/users', [App\Http\Controllers\Admin\UserManagementController::class, 'index'])->name('users.index');
         Route::post('/users', [App\Http\Controllers\Admin\UserManagementController::class, 'store'])->name('users.store');

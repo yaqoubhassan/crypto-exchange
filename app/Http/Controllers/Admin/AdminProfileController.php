@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
@@ -21,25 +21,87 @@ class AdminProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        $activities = ActivityLog::where('user_id', $request->user()->id)
+        $user = $request->user();
+
+        // Get active sessions for security tab
+        $activeSessions = DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->orderBy('last_activity', 'desc')
+            ->get()
+            ->map(function ($session) use ($request) {
+                return [
+                    'id' => $session->id,
+                    'ip_address' => $session->ip_address,
+                    'user_agent' => $session->user_agent,
+                    'last_activity' => $session->last_activity,
+                    'is_current' => $session->id === $request->session()->getId(),
+                    'device_type' => $this->getDeviceType($session->user_agent),
+                    'browser' => $this->getBrowser($session->user_agent),
+                    'platform' => $this->getPlatform($session->user_agent),
+                ];
+            });
+
+        // Get recent activity logs (paginated)
+        $activities = $user->activityLogs()
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
         return Inertia::render('Admin/Profile/Edit', [
-            'user' => [
-                'id' => $request->user()->id,
-                'name' => $request->user()->name,
-                'email' => $request->user()->email,
-                'profile_picture' => $request->user()->profile_picture,
-                'phone' => $request->user()->phone,
-                'bio' => $request->user()->bio,
-                'location' => $request->user()->location,
-                'created_at' => $request->user()->created_at,
-                'role' => $request->user()->role,
-                'last_login_at' => $request->user()->last_login_at,
-            ],
+            'user' => $user,
             'activities' => $activities,
+            'activeSessions' => $activeSessions,
+            'twoFactorEnabled' => $user->two_factor_enabled ?? false,
         ]);
+    }
+
+    /**
+     * Get device type from user agent
+     */
+    private function getDeviceType(?string $userAgent): ?string
+    {
+        if (!$userAgent) return null;
+
+        if (preg_match('/mobile|android|iphone|ipad|phone/i', $userAgent)) {
+            if (preg_match('/ipad|tablet/i', $userAgent)) {
+                return 'Tablet';
+            }
+            return 'Mobile';
+        }
+
+        return 'Desktop';
+    }
+
+    /**
+     * Get browser from user agent
+     */
+    private function getBrowser(?string $userAgent): ?string
+    {
+        if (!$userAgent) return null;
+
+        if (preg_match('/Edg/i', $userAgent)) return 'Edge';
+        if (preg_match('/Chrome/i', $userAgent)) return 'Chrome';
+        if (preg_match('/Safari/i', $userAgent)) return 'Safari';
+        if (preg_match('/Firefox/i', $userAgent)) return 'Firefox';
+        if (preg_match('/MSIE|Trident/i', $userAgent)) return 'Internet Explorer';
+        if (preg_match('/Opera|OPR/i', $userAgent)) return 'Opera';
+
+        return 'Unknown';
+    }
+
+    /**
+     * Get platform from user agent
+     */
+    private function getPlatform(?string $userAgent): ?string
+    {
+        if (!$userAgent) return null;
+
+        if (preg_match('/Windows/i', $userAgent)) return 'Windows';
+        if (preg_match('/Macintosh|Mac OS X/i', $userAgent)) return 'macOS';
+        if (preg_match('/Linux/i', $userAgent)) return 'Linux';
+        if (preg_match('/Android/i', $userAgent)) return 'Android';
+        if (preg_match('/iOS|iPhone|iPad/i', $userAgent)) return 'iOS';
+
+        return 'Unknown';
     }
 
     /**

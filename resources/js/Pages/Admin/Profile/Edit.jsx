@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
-import { User, Mail, Phone, MapPin, Camera, Trash2, Lock, Activity, Save, X } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Trash2, Lock, Activity, Save, X, Shield, Monitor, Eye, EyeOff, AlertTriangle, ExternalLink } from 'lucide-react';
 
-export default function Edit({ user }) {
+export default function Edit({ user, activities, activeSessions, twoFactorEnabled }) {
   const [activeTab, setActiveTab] = useState('profile');
 
   return (
@@ -65,8 +65,8 @@ export default function Edit({ user }) {
 
         <div className="mt-6">
           {activeTab === 'profile' && <ProfileTab user={user} />}
-          {activeTab === 'security' && <SecurityTab />}
-          {activeTab === 'activity' && <ActivityTab />}
+          {activeTab === 'security' && <SecurityTab activeSessions={activeSessions} twoFactorEnabled={twoFactorEnabled} />}
+          {activeTab === 'activity' && <ActivityTab activities={activities} />}
         </div>
       </div>
     </AdminLayout>
@@ -116,12 +116,7 @@ function ProfileTab({ user }) {
 
   const handleRemovePicture = () => {
     if (confirm('Are you sure you want to remove your profile picture?')) {
-      router.delete(route('admin.profile.picture.remove'), {
-        onSuccess: () => {
-          setPreviewImage(null);
-          setSelectedFile(null);
-        },
-      });
+      router.delete(route('admin.profile.picture.remove'));
     }
   };
 
@@ -130,127 +125,134 @@ function ProfileTab({ user }) {
     patch(route('admin.profile.update'));
   };
 
-  const getProfilePictureUrl = () => {
-    if (previewImage) return previewImage;
-    if (user.profile_picture) return `/storage/${user.profile_picture}`;
-    return null;
-  };
-
   return (
     <div className="space-y-6">
+      {/* Profile Picture Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Picture</h3>
-        <div className="flex items-start space-x-6">
+
+        <div className="flex items-center space-x-6">
           <div className="relative">
-            <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-              {getProfilePictureUrl() ? (
-                <img
-                  src={getProfilePictureUrl()}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                />
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+              {previewImage ? (
+                <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
+              ) : user.profile_picture ? (
+                <img src={`/storage/${user.profile_picture}`} alt={user.name} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-16 h-16 text-white" />
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-3xl font-semibold">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
               )}
             </div>
-            {(user.profile_picture || previewImage) && (
-              <button
-                onClick={handleRemovePicture}
-                className="absolute bottom-0 right-0 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-                title="Remove picture"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
           </div>
 
           <div className="flex-1">
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload New Picture
+            <div className="flex items-center space-x-3">
+              <label className="cursor-pointer px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                <Camera className="w-4 h-4 inline mr-2" />
+                Choose Photo
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                />
               </label>
-              <input
-                type="file"
-                onChange={handleFileSelect}
-                accept="image/jpeg,image/png,image/jpg,image/gif"
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-              />
-              <p className="mt-2 text-xs text-gray-500">
-                JPG, PNG, GIF up to 2MB
-              </p>
-              {pictureForm.errors.profile_picture && (
-                <p className="mt-2 text-sm text-red-600">{pictureForm.errors.profile_picture}</p>
+
+              {selectedFile && (
+                <>
+                  <button
+                    onClick={handleUploadPicture}
+                    disabled={pictureForm.processing}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm font-medium"
+                  >
+                    {pictureForm.processing ? 'Uploading...' : 'Upload'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPreviewImage(null);
+                      setSelectedFile(null);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              {user.profile_picture && !selectedFile && (
+                <button
+                  onClick={handleRemovePicture}
+                  className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+                >
+                  <Trash2 className="w-4 h-4 inline mr-2" />
+                  Remove
+                </button>
               )}
             </div>
-
-            {selectedFile && (
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleUploadPicture}
-                  disabled={pictureForm.processing}
-                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  {pictureForm.processing ? 'Uploading...' : 'Upload Picture'}
-                </button>
-                <button
-                  onClick={() => {
-                    setPreviewImage(null);
-                    setSelectedFile(null);
-                  }}
-                  className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
-                </button>
-              </div>
-            )}
+            <p className="text-xs text-gray-500 mt-2">
+              JPG, PNG or GIF. Max size 2MB.
+            </p>
           </div>
         </div>
       </div>
 
+      {/* Profile Information Form */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name *
+                Full Name
               </label>
-              <input
-                type="text"
-                value={data.name}
-                onChange={(e) => setData('name', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={data.name}
+                  onChange={(e) => setData('name', e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address *
+                Email Address
               </label>
-              <input
-                type="email"
-                value={data.email}
-                onChange={(e) => setData('email', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="email"
+                  value={data.email}
+                  onChange={(e) => setData('email', e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="john@example.com"
+                />
+              </div>
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phone Number
               </label>
-              <input
-                type="tel"
-                value={data.phone}
-                onChange={(e) => setData('phone', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="tel"
+                  value={data.phone}
+                  onChange={(e) => setData('phone', e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
               {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
             </div>
 
@@ -258,13 +260,16 @@ function ProfileTab({ user }) {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Location
               </label>
-              <input
-                type="text"
-                value={data.location}
-                onChange={(e) => setData('location', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="City, Country"
-              />
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={data.location}
+                  onChange={(e) => setData('location', e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="City, Country"
+                />
+              </div>
               {errors.location && <p className="mt-1 text-sm text-red-600">{errors.location}</p>}
             </div>
           </div>
@@ -308,7 +313,13 @@ function ProfileTab({ user }) {
   );
 }
 
-function SecurityTab() {
+function SecurityTab({ activeSessions, twoFactorEnabled }) {
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
   const { data, setData, patch, processing, errors, reset, recentlySuccessful } = useForm({
     current_password: '',
     password: '',
@@ -322,85 +333,264 @@ function SecurityTab() {
     });
   };
 
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString();
+  };
+
+  const getDeviceIcon = (deviceType) => {
+    if (deviceType === 'Mobile') return '📱';
+    if (deviceType === 'Tablet') return '📱';
+    return '💻';
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
-      <p className="text-sm text-gray-600 mb-6">
-        Ensure your account is using a long, random password to stay secure.
-      </p>
+    <div className="space-y-6">
+      {/* Password Change Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
+          <Lock className="w-5 h-5 mr-2" />
+          Change Password
+        </h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Ensure your account is using a long, random password to stay secure.
+        </p>
 
-      <div className="space-y-6 max-w-xl">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Current Password *
-          </label>
-          <input
-            type="password"
-            value={data.current_password}
-            onChange={(e) => setData('current_password', e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            required
-          />
-          {errors.current_password && (
-            <p className="mt-1 text-sm text-red-600">{errors.current_password}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            New Password *
-          </label>
-          <input
-            type="password"
-            value={data.password}
-            onChange={(e) => setData('password', e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            required
-          />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Confirm Password *
-          </label>
-          <input
-            type="password"
-            value={data.password_confirmation}
-            onChange={(e) => setData('password_confirmation', e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            required
-          />
-          {errors.password_confirmation && (
-            <p className="mt-1 text-sm text-red-600">{errors.password_confirmation}</p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between pt-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            {recentlySuccessful && (
-              <p className="text-sm text-green-600">Password updated successfully!</p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword.current ? "text" : "password"}
+                value={data.current_password}
+                onChange={(e) => setData('current_password', e.target.value)}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.current_password && (
+              <p className="mt-1 text-sm text-red-600">{errors.current_password}</p>
             )}
           </div>
-          <button
-            onClick={handleSubmit}
-            disabled={processing}
-            className="inline-flex items-center px-6 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword.new ? "text" : "password"}
+                value={data.password}
+                onChange={(e) => setData('password', e.target.value)}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword.confirm ? "text" : "password"}
+                value={data.password_confirmation}
+                onChange={(e) => setData('password_confirmation', e.target.value)}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.password_confirmation && (
+              <p className="mt-1 text-sm text-red-600">{errors.password_confirmation}</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-4">
+            <div>
+              {recentlySuccessful && (
+                <p className="text-sm text-green-600">Password updated successfully!</p>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={processing}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              {processing ? 'Updating...' : 'Update Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Two-Factor Authentication Quick Info */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
+              <Shield className="w-5 h-5 mr-2" />
+              Two-Factor Authentication
+            </h3>
+            <p className="text-sm text-gray-600">
+              Add an extra layer of security to your account
+            </p>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${twoFactorEnabled
+            ? 'bg-green-100 text-green-800'
+            : 'bg-gray-100 text-gray-800'
+            }`}>
+            {twoFactorEnabled ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+
+        <div className="mt-4">
+          <Link
+            href={route('admin.security.index')}
+            className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
-            <Lock className="w-4 h-4 mr-2" />
-            {processing ? 'Updating...' : 'Update Password'}
-          </button>
+            Manage Two-Factor Authentication
+            <ExternalLink className="w-4 h-4 ml-1" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Active Sessions Preview */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Monitor className="w-5 h-5 mr-2" />
+              Active Sessions
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Devices where you're currently logged in
+            </p>
+          </div>
+          <Link
+            href={route('admin.security.index')}
+            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            View All
+          </Link>
+        </div>
+
+        {activeSessions && activeSessions.length > 0 ? (
+          <div className="space-y-3">
+            {activeSessions.slice(0, 3).map((session) => (
+              <div
+                key={session.id}
+                className={`p-4 rounded-lg border ${session.is_current
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-gray-50 border-gray-200'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={session.is_current ? 'text-green-600' : 'text-gray-600'}>
+                    {getDeviceIcon(session.device_type)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900 text-sm">
+                      {session.is_current ? 'Current Device' : session.platform}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {session.browser} • {session.ip_address}
+                    </div>
+                  </div>
+                  {session.is_current && (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {activeSessions.length > 3 && (
+              <div className="pt-2">
+                <Link
+                  href={route('admin.security.index')}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  View {activeSessions.length - 3} more session(s)
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No active sessions found.</p>
+        )}
+      </div>
+
+      {/* Security Best Practices */}
+      <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+        <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+          <AlertTriangle className="w-5 h-5 mr-2" />
+          Security Best Practices
+        </h3>
+        <ul className="space-y-2 text-sm text-blue-800">
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>Use a strong, unique password that you don't use on other websites</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>Enable two-factor authentication for an additional layer of security</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>Regularly review your login activity and active sessions</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>Never share your password or 2FA codes with anyone</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>Log out from devices you no longer use</span>
+          </li>
+        </ul>
+
+        <div className="mt-4 pt-4 border-t border-blue-200">
+          <Link
+            href={route('admin.security.index')}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Go to Full Security Settings
+            <ExternalLink className="w-4 h-4 ml-2" />
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-function ActivityTab() {
-  const { activities } = usePage().props;
-
+function ActivityTab({ activities }) {
   const getActivityIcon = (action) => {
     const icons = {
       login: { icon: Activity, color: 'bg-green-100 text-green-600' },
@@ -472,44 +662,20 @@ function ActivityTab() {
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                       {activity.ip_address && (
                         <span className="flex items-center">
-                          <span className="mr-1">🌐</span>
+                          <MapPin className="w-3 h-3 mr-1" />
                           {activity.ip_address}
                         </span>
                       )}
                       {activity.device && (
-                        <span className="flex items-center">
-                          <span className="mr-1">{getDeviceIcon(activity.device)}</span>
-                          {activity.device}
-                        </span>
+                        <span>{getDeviceIcon(activity.device)} {activity.device}</span>
                       )}
                       {activity.browser && (
-                        <span className="flex items-center">
-                          <span className="mr-1">🔍</span>
-                          {activity.browser}
-                        </span>
+                        <span>{activity.browser}</span>
                       )}
                       {activity.platform && (
-                        <span className="flex items-center">
-                          <span className="mr-1">⚙️</span>
-                          {activity.platform}
-                        </span>
+                        <span>{activity.platform}</span>
                       )}
                     </div>
-                    {activity.properties && Object.keys(activity.properties).length > 0 && (
-                      <div className="mt-2 p-2 bg-white rounded border border-gray-200">
-                        <p className="text-xs font-medium text-gray-700 mb-1">Changes:</p>
-                        <div className="text-xs text-gray-600 space-y-0.5">
-                          {activity.properties.changes && Object.entries(activity.properties.changes).map(([key, change]) => (
-                            <div key={key}>
-                              <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span>{' '}
-                              <span className="text-gray-500">{change.old || 'empty'}</span>
-                              {' → '}
-                              <span className="text-gray-900">{change.new || 'empty'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -517,23 +683,23 @@ function ActivityTab() {
           </div>
 
           {/* Pagination */}
-          {activities.last_page > 1 && (
+          {activities.links && (
             <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
               <div className="text-sm text-gray-600">
                 Showing {activities.from} to {activities.to} of {activities.total} activities
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex space-x-2">
                 {activities.links.map((link, index) => (
                   <Link
                     key={index}
                     href={link.url || '#'}
-                    disabled={!link.url}
-                    className={`px-3 py-1 text-sm rounded-md ${link.active
+                    className={`px-3 py-1 rounded-lg text-sm ${link.active
                       ? 'bg-indigo-600 text-white'
                       : link.url
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }`}
+                    preserveScroll
                     dangerouslySetInnerHTML={{ __html: link.label }}
                   />
                 ))}
@@ -542,24 +708,11 @@ function ActivityTab() {
           )}
         </>
       ) : (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">📋</div>
-          <p className="text-gray-500 text-sm">No activity logs yet</p>
-          <p className="text-gray-400 text-xs mt-1">Your activity will appear here</p>
+        <div className="text-center py-8">
+          <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <p className="text-gray-500">No activity logs found</p>
         </div>
       )}
-
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-start">
-          <Activity className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-          <div>
-            <h4 className="text-sm font-medium text-blue-900">Security Tip</h4>
-            <p className="mt-1 text-sm text-blue-700">
-              Regularly review your activity log to ensure all actions are authorized. If you notice any suspicious activity, change your password immediately and contact support.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
