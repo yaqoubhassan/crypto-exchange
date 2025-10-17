@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import AdminStatCard from '@/Components/Admin/AdminStatCard';
 import AdminAlertBadge from '@/Components/Admin/AdminAlertBadge';
+import SupportTicketsWidget from '@/Components/Admin/SupportTicketsWidget';
 import { Link } from '@inertiajs/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -13,7 +14,9 @@ export default function AdminDashboard({
     pendingKyc,
     systemHealth,
     revenueData,
-    alerts = [] // Now coming from backend
+    alerts = [],
+    supportStats,
+    recentTickets
 }) {
     // Use real alerts from backend, but allow dismissal on frontend
     const [visibleAlerts, setVisibleAlerts] = useState(alerts);
@@ -289,6 +292,19 @@ export default function AdminDashboard({
                                     </div>
                                 </Link>
                             )}
+                            {supportStats && supportStats.open > 0 && (
+                                <Link
+                                    href="/admin/support"
+                                    className="block w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg text-sm font-medium transition-all shadow-sm text-center"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="truncate">Review Support Tickets</span>
+                                        <span className="bg-white bg-opacity-20 px-2 py-1 rounded text-sm flex-shrink-0 ml-2">
+                                            {supportStats.open}
+                                        </span>
+                                    </div>
+                                </Link>
+                            )}
                             <Link
                                 href="/admin/users"
                                 className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg text-sm font-medium transition-all shadow-sm text-center"
@@ -333,8 +349,68 @@ export default function AdminDashboard({
                 </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Widgets Row - Support Tickets & Recent Users */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+                {/* Support Tickets Widget */}
+                {supportStats && recentTickets && (
+                    <SupportTicketsWidget
+                        tickets={recentTickets}
+                        stats={supportStats}
+                    />
+                )}
+
+                {/* Recent Users */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div className="p-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900">Recent Users</h3>
+                        <Link
+                            href="/admin/users"
+                            className="text-xs sm:text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                        >
+                            View all →
+                        </Link>
+                    </div>
+                    <div className="p-3 sm:p-4">
+                        <div className="space-y-2 sm:space-y-3">
+                            {recentUsers.slice(0, 5).map((user) => (
+                                <div key={user.id} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                                            {user.name?.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                                                {user.name}
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {user.email}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right ml-2 flex-shrink-0">
+                                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                            }`}>
+                                            {user.is_active ? 'Active' : 'Inactive'}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            {new Date(user.created_at).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {recentUsers.length === 0 && (
+                                <div className="text-center py-8 text-gray-500">
+                                    <div className="text-3xl sm:text-4xl mb-2">👥</div>
+                                    <div className="text-sm">No recent users</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Activity - Transactions Only */}
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
                 {/* Recent Transactions */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                     <div className="p-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
@@ -381,55 +457,6 @@ export default function AdminDashboard({
                                 <div className="text-center py-8 text-gray-500">
                                     <div className="text-3xl sm:text-4xl mb-2">💳</div>
                                     <div className="text-sm">No recent transactions</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Recent Users */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                    <div className="p-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
-                        <h3 className="text-base sm:text-lg font-semibold text-gray-900">Recent Users</h3>
-                        <Link
-                            href="/admin/users"
-                            className="text-xs sm:text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                        >
-                            View all →
-                        </Link>
-                    </div>
-                    <div className="p-3 sm:p-4">
-                        <div className="space-y-2 sm:space-y-3">
-                            {recentUsers.slice(0, 5).map((user) => (
-                                <div key={user.id} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                    <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                                            {user.name?.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
-                                                {user.name}
-                                            </div>
-                                            <div className="text-xs text-gray-500 truncate">
-                                                {user.email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="text-right ml-2 flex-shrink-0">
-                                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                            }`}>
-                                            {user.is_active ? 'Active' : 'Inactive'}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            {new Date(user.created_at).toLocaleDateString()}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {recentUsers.length === 0 && (
-                                <div className="text-center py-8 text-gray-500">
-                                    <div className="text-3xl sm:text-4xl mb-2">👥</div>
-                                    <div className="text-sm">No recent users</div>
                                 </div>
                             )}
                         </div>

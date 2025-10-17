@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SupportTicket;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +107,19 @@ class AdminController extends Controller
             ];
         }
 
+        $supportStats = [
+            'total' => SupportTicket::count(),
+            'open' => SupportTicket::where('status', 'open')->count(),
+            'in_progress' => SupportTicket::where('status', 'in_progress')->count(),
+            'resolved' => SupportTicket::where('status', 'resolved')->count(),
+        ];
+
+        // Get recent support tickets
+        $recentTickets = SupportTicket::with('user')
+            ->latest()
+            ->take(5)
+            ->get();
+
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
             'recentTransactions' => $recentTransactions,
@@ -115,6 +129,8 @@ class AdminController extends Controller
             'systemHealth' => $systemHealth,
             'revenueData' => $revenueData,
             'alerts' => $alerts,
+            'supportStats' => $supportStats,
+            'recentTickets' => $recentTickets,
         ]);
     }
 

@@ -66,6 +66,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/notifications', [App\Http\Controllers\SettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::post('/settings/display', [App\Http\Controllers\SettingsController::class, 'updateDisplay'])->name('settings.display');
+
+    // Support routes
+    Route::get('/help', [App\Http\Controllers\SupportController::class, 'help'])->name('help');
+    Route::get('/support', [App\Http\Controllers\SupportController::class, 'contact'])->name('support');
+    Route::post('/support', [App\Http\Controllers\SupportController::class, 'store'])->name('support.store');
+    Route::get('/support/{id}', [App\Http\Controllers\SupportController::class, 'show'])->name('support.show');
+    Route::post('/support/{id}/close', [App\Http\Controllers\SupportController::class, 'close'])->name('support.close');
 });
 
 // Admin routes
@@ -118,6 +125,14 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
 
         // Reports (for future use)
         Route::get('/reports', [App\Http\Controllers\Admin\AdminController::class, 'reports'])->name('reports');
+
+        // Support management
+        Route::get('/support', [App\Http\Controllers\Admin\SupportController::class, 'index'])->name('support.index');
+        Route::get('/support/{id}', [App\Http\Controllers\Admin\SupportController::class, 'show'])->name('support.show');
+        Route::post('/support/{id}/status', [App\Http\Controllers\Admin\SupportController::class, 'updateStatus'])->name('support.status');
+        Route::post('/support/{id}/respond', [App\Http\Controllers\Admin\SupportController::class, 'respond'])->name('support.respond');
+        Route::post('/support/{id}/priority', [App\Http\Controllers\Admin\SupportController::class, 'updatePriority'])->name('support.priority');
+        Route::delete('/support/{id}', [App\Http\Controllers\Admin\SupportController::class, 'destroy'])->name('support.destroy');
     });
 
 require __DIR__ . '/auth.php';
