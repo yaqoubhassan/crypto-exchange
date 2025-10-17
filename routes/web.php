@@ -151,8 +151,20 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
         Route::post('/kyc/{id}/approve', [App\Http\Controllers\Admin\AdminController::class, 'approveKyc'])->name('kyc.approve');
         Route::post('/kyc/{id}/reject', [App\Http\Controllers\Admin\AdminController::class, 'rejectKyc'])->name('kyc.reject');
 
-        // Cryptocurrency management (for future use)
-        Route::get('/cryptocurrencies', [App\Http\Controllers\Admin\AdminController::class, 'cryptocurrencies'])->name('cryptocurrencies');
+        // Cryptocurrency management - Full CRUD
+        Route::get('/cryptocurrencies', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'index'])->name('cryptocurrencies.index');
+        Route::get('/cryptocurrencies/create', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'create'])->name('cryptocurrencies.create');
+        Route::get('/cryptocurrencies/export', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'export'])->name('cryptocurrencies.export');
+        Route::post('/cryptocurrencies', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'store'])->name('cryptocurrencies.store');
+        Route::post('/cryptocurrencies/bulk-toggle', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'bulkToggleStatus'])->name('cryptocurrencies.bulk-toggle');
+        Route::post('/cryptocurrencies/update-prices', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'updatePrices'])->name('cryptocurrencies.update-prices');
+
+        // Parameterized routes - MUST come after specific routes
+        Route::get('/cryptocurrencies/{cryptocurrency}', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'show'])->name('cryptocurrencies.show');
+        Route::get('/cryptocurrencies/{cryptocurrency}/edit', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'edit'])->name('cryptocurrencies.edit');
+        Route::post('/cryptocurrencies/{cryptocurrency}', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'update'])->name('cryptocurrencies.update');
+        Route::post('/cryptocurrencies/{cryptocurrency}/toggle-status', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'toggleStatus'])->name('cryptocurrencies.toggle-status');
+        Route::delete('/cryptocurrencies/{cryptocurrency}', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'destroy'])->name('cryptocurrencies.destroy');
 
         // Reports (for future use)
         Route::get('/reports', [App\Http\Controllers\Admin\AdminController::class, 'reports'])->name('reports');
