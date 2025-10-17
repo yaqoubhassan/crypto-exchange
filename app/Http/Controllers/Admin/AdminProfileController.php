@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +21,10 @@ class AdminProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $activities = ActivityLog::where('user_id', $request->user()->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
         return Inertia::render('Admin/Profile/Edit', [
             'user' => [
                 'id' => $request->user()->id,
@@ -33,6 +38,7 @@ class AdminProfileController extends Controller
                 'role' => $request->user()->role,
                 'last_login_at' => $request->user()->last_login_at,
             ],
+            'activities' => $activities,
         ]);
     }
 

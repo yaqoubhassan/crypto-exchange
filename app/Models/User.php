@@ -132,6 +132,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(UserKyc::class);
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
+
     /**
      * Get all notifications for the user.
      */
