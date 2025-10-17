@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -124,11 +125,9 @@ class AdminSecurityController extends Controller
                 throw new \Exception('QR Code is still not a string after conversion: ' . gettype($qrCodeSvg));
             }
 
-            \Log::info('QR Code generated as SVG, length: ' . strlen($qrCodeSvg) . ' characters');
-
             $qrCodeData = $qrCodeSvg;
         } catch (\Exception $e) {
-            \Log::error('QR Code generation failed: ' . $e->getMessage());
+            Log::error('QR Code generation failed: ' . $e->getMessage());
             $qrCodeData = null;
             return back()->with('error', 'Failed to generate QR code: ' . $e->getMessage());
         }

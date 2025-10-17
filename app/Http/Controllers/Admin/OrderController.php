@@ -133,15 +133,6 @@ class OrderController extends Controller
             ]
         );
 
-        // Log admin action
-        Log::info('Admin updated order status', [
-            'admin_id' => auth()->id(),
-            'admin_email' => auth()->user()->email,
-            'order_id' => $order->order_id,
-            'old_status' => $oldStatus,
-            'new_status' => $request->status,
-        ]);
-
         return back()->with('success', 'Order status updated successfully.');
     }
 
@@ -262,15 +253,6 @@ class OrderController extends Controller
                 ]
             );
 
-            // Log admin action
-            Log::info('Admin approved order', [
-                'admin_id' => auth()->id(),
-                'admin_email' => auth()->user()->email,
-                'order_id' => $order->order_id,
-                'user_id' => $order->user_id,
-                'old_status' => $oldStatus,
-            ]);
-
             DB::commit();
 
             return back()->with('success', 'Order approved and filled successfully!');
@@ -327,16 +309,6 @@ class OrderController extends Controller
                     'reason' => $request->reason,
                 ]
             );
-
-            // Log admin action
-            Log::info('Admin rejected order', [
-                'admin_id' => auth()->id(),
-                'admin_email' => auth()->user()->email,
-                'order_id' => $order->order_id,
-                'user_id' => $order->user_id,
-                'reason' => $request->reason,
-                'old_status' => $oldStatus,
-            ]);
 
             DB::commit();
 
