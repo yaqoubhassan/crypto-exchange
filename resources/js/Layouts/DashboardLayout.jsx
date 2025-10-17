@@ -1,28 +1,55 @@
-import React from 'react';
-import { usePage } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head, usePage } from '@inertiajs/react';
 import DashboardHeader from '@/Components/Dashboard/DashboardHeader';
 import Sidebar from '@/Components/Dashboard/Sidebar';
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({ children, title }) {
   const { auth } = usePage().props;
-  const currentRoute = route().current();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const user = auth?.user || null;
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Fixed Header - z-[60] */}
-      <DashboardHeader user={auth.user} />
+    <>
+      <Head title={title || 'Dashboard'} />
 
-      {/* Fixed Sidebar - z-40 */}
-      <Sidebar currentRoute={currentRoute} />
+      <div className="flex h-screen bg-gray-50 overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar
+          isOpen={sidebarOpen}
+          setIsOpen={setSidebarOpen}
+          isCollapsed={sidebarCollapsed}
+          setIsCollapsed={setSidebarCollapsed}
+        />
 
-      {/* Main Content - Account for fixed header and sidebar */}
-      <div className="lg:pl-64 pt-16">
-        <main className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <DashboardHeader
+            user={user}
+            toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            isCollapsed={sidebarCollapsed}
+            toggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
+
+          {/* Main Content */}
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
             {children}
           </div>
-        </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
