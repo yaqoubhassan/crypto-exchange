@@ -57,55 +57,36 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
 
     // ✅ FIXED: Support both action_url and link fields
     const handleNotificationClick = async (notification) => {
-        console.log('🔔 Notification clicked:', notification);
-        console.log('📊 Is read status:', notification.is_read);
-        console.log('🔗 Action URL:', notification.action_url);
-        console.log('🔗 Link:', notification.link);
 
         setShowNotifications(false);
 
         if (!notification.is_read) {
-            console.log('📝 Marking notification as read...');
             try {
                 await markAsRead(notification.id);
-                console.log('✅ Successfully marked as read');
             } catch (error) {
                 console.error('❌ Error marking as read:', error);
             }
-        } else {
-            console.log('ℹ️ Notification already read, skipping mark as read');
         }
 
-        // ✅ FIXED: Support both action_url (DashboardHeader) and link (database field)
         const targetUrl = notification.action_url || notification.link;
         if (targetUrl) {
-            console.log('🚀 Navigating to:', targetUrl);
             router.visit(targetUrl);
-        } else {
-            console.log('⚠️ No action_url or link found for notification');
         }
     };
 
     // ✅ Add logging to mark all as read
     const handleMarkAllRead = async () => {
-        console.log('📝 Marking all notifications as read...');
-        console.log('📊 Current unread count:', unreadCount);
         try {
             await markAllAsRead();
-            console.log('✅ Successfully marked all as read');
         } catch (error) {
             console.error('❌ Error marking all as read:', error);
         }
     };
 
-    // ✅ Add logging to clear all
     const handleClearAll = async () => {
-        console.log('🗑️ Clearing all notifications...');
-        console.log('📊 Total notifications:', notifications.length);
         setClearing(true);
         try {
             await clearAll();
-            console.log('✅ Successfully cleared all notifications');
             setShowClearModal(false);
             setShowNotifications(false);
             setToast({

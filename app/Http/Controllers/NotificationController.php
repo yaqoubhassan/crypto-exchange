@@ -28,27 +28,14 @@ class NotificationController extends Controller
 
     public function markAsRead($id)
     {
-        Log::info('🔔 [markAsRead] Request received', ['notification_id' => $id]);
 
         $notification = auth()->user()->notifications()->findOrFail($id);
-
-        Log::info('📊 [markAsRead] Notification found', [
-            'id' => $notification->id,
-            'title' => $notification->title,
-            'is_read_before' => $notification->is_read,
-        ]);
 
         $notification->markAsRead();
 
         // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
         auth()->user()->unsetRelation('unreadNotifications');
-
-        Log::info('✅ [markAsRead] Notification marked as read', [
-            'id' => $notification->id,
-            'is_read_after' => $notification->fresh()->is_read,
-            'read_at' => $notification->fresh()->read_at,
-        ]);
 
         return back();
     }
@@ -57,23 +44,13 @@ class NotificationController extends Controller
     {
         $unreadCount = auth()->user()->unreadNotifications()->count();
 
-        Log::info('🔔 [markAllAsRead] Request received', [
-            'user_id' => auth()->id(),
-            'unread_count' => $unreadCount,
-        ]);
-
         $updated = auth()->user()->unreadNotifications()->update([
             'is_read' => true,
             'read_at' => now(),
         ]);
 
-        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
         auth()->user()->unsetRelation('unreadNotifications');
-
-        Log::info('✅ [markAllAsRead] Notifications updated', [
-            'updated_count' => $updated,
-        ]);
 
         return back()->with('success', 'All notifications marked as read');
     }
@@ -82,20 +59,10 @@ class NotificationController extends Controller
     {
         $count = auth()->user()->notifications()->count();
 
-        Log::info('🗑️ [clearAll] Request received', [
-            'user_id' => auth()->id(),
-            'total_count' => $count,
-        ]);
-
         auth()->user()->notifications()->delete();
 
-        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
         auth()->user()->unsetRelation('unreadNotifications');
-
-        Log::info('✅ [clearAll] Notifications deleted', [
-            'deleted_count' => $count,
-        ]);
 
         return back()->with('success', $count > 0
             ? "All {$count} notification" . ($count !== 1 ? 's' : '') . " cleared successfully!"
@@ -105,11 +72,6 @@ class NotificationController extends Controller
     public function handleClick($id)
     {
         $notification = auth()->user()->notifications()->findOrFail($id);
-
-        Log::info('🖱️ [handleClick] Notification clicked', [
-            'id' => $notification->id,
-            'link' => $notification->link,
-        ]);
 
         // Mark as read
         $notification->markAsRead();
@@ -129,11 +91,6 @@ class NotificationController extends Controller
     public function destroy($id)
     {
         $notification = auth()->user()->notifications()->findOrFail($id);
-
-        Log::info('🗑️ [destroy] Deleting notification', [
-            'id' => $notification->id,
-            'title' => $notification->title,
-        ]);
 
         $notification->delete();
 

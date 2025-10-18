@@ -71,7 +71,6 @@ export default function AdminSecurityIndex({
       preserveState: true,
       preserveScroll: true,
       onSuccess: (page) => {
-        console.log('2FA Enable Success - Page props:', page.props);
         // The modal will open automatically via useEffect when qrCode is available
       },
       onError: (errors) => {

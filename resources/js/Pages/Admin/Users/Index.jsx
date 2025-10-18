@@ -86,7 +86,6 @@ export default function UsersIndex({ auth, users, filters, stats }) {
                 });
                 break;
             default:
-                console.log('Bulk action:', bulkAction, 'for users:', selectedUsers);
                 setShowBulkModal(false);
         }
     };

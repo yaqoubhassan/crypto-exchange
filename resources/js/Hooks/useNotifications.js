@@ -56,7 +56,6 @@ export function useNotifications() {
     const channel = window.Echo.private(`user.${auth.user.id}`);
 
     channel.listen('.notification.sent', (data) => {
-      console.log('New notification received:', data);
 
       setNotifications(prev => [data, ...prev]);
       setUnreadCount(prev => prev + 1);
@@ -83,25 +82,20 @@ export function useNotifications() {
   // ✅ UPDATED: Use admin-aware route names
   const markAsRead = useCallback((notificationId) => {
     return new Promise((resolve, reject) => {
-      console.log('🔧 [markAsRead] Starting for notification ID:', notificationId);
-      console.log('👤 [markAsRead] Is admin:', isAdmin);
 
       // Optimistically update the UI first
       setNotifications(prev => {
         const updated = prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n);
-        console.log('✅ [markAsRead] Optimistically updated UI');
         return updated;
       });
       setUnreadCount(prev => {
         const newCount = Math.max(0, prev - 1);
-        console.log('✅ [markAsRead] Optimistically updated unread count:', newCount);
         return newCount;
       });
 
       // ✅ Use admin-aware route
       const routeName = getRouteName('notifications.read');
       const routeUrl = route(routeName, notificationId);
-      console.log('🌐 [markAsRead] Posting to route:', routeName, '→', routeUrl);
 
       router.post(
         routeUrl,
@@ -110,17 +104,14 @@ export function useNotifications() {
           preserveScroll: true,
           preserveState: false,
           onSuccess: (page) => {
-            console.log('✅ [markAsRead] Server response SUCCESS');
             resolve();
           },
           onError: (errors) => {
-            console.error('❌ [markAsRead] Server response ERROR:', errors);
             // Revert optimistic update on error
             setNotifications(prev =>
               prev.map(n => n.id === notificationId ? { ...n, is_read: false } : n)
             );
             setUnreadCount(prev => prev + 1);
-            console.log('↩️ [markAsRead] Reverted optimistic updates');
             reject(errors);
           }
         }
@@ -131,23 +122,17 @@ export function useNotifications() {
   // ✅ UPDATED: Use admin-aware route names
   const markAllAsRead = useCallback(() => {
     return new Promise((resolve, reject) => {
-      console.log('🔧 [markAllAsRead] Starting...');
-      console.log('👤 [markAllAsRead] Is admin:', isAdmin);
-
       // Optimistically update UI
       setNotifications(prev => {
         const updated = prev.map(n => ({ ...n, is_read: true }));
-        console.log('✅ [markAllAsRead] Optimistically marked all as read');
         return updated;
       });
       const previousUnreadCount = unreadCount;
       setUnreadCount(0);
-      console.log('✅ [markAllAsRead] Optimistically set unread count to 0');
 
       // ✅ Use admin-aware route
       const routeName = getRouteName('notifications.mark-all-read');
       const routeUrl = route(routeName);
-      console.log('🌐 [markAllAsRead] Posting to route:', routeName, '→', routeUrl);
 
       router.post(
         routeUrl,
@@ -156,11 +141,9 @@ export function useNotifications() {
           preserveScroll: true,
           preserveState: false,
           onSuccess: (page) => {
-            console.log('✅ [markAllAsRead] Server response SUCCESS');
             resolve();
           },
           onError: (errors) => {
-            console.error('❌ [markAllAsRead] Server response ERROR:', errors);
             // Revert on error
             setNotifications(prev =>
               prev.map(n => {
@@ -169,7 +152,6 @@ export function useNotifications() {
               })
             );
             setUnreadCount(previousUnreadCount);
-            console.log('↩️ [markAllAsRead] Reverted optimistic updates');
             reject(errors);
           }
         }
@@ -180,9 +162,6 @@ export function useNotifications() {
   // ✅ UPDATED: Use admin-aware route names
   const clearAll = useCallback(() => {
     return new Promise((resolve, reject) => {
-      console.log('🔧 [clearAll] Starting...');
-      console.log('👤 [clearAll] Is admin:', isAdmin);
-
       // Store previous state for rollback
       const previousNotifications = [...notifications];
       const previousUnreadCount = unreadCount;
@@ -190,12 +169,10 @@ export function useNotifications() {
       // Optimistically update UI
       setNotifications([]);
       setUnreadCount(0);
-      console.log('✅ [clearAll] Optimistically cleared all notifications');
 
       // ✅ Use admin-aware route
       const routeName = getRouteName('notifications.clear-all');
       const routeUrl = route(routeName);
-      console.log('🌐 [clearAll] Deleting via route:', routeName, '→', routeUrl);
 
       router.delete(
         routeUrl,
@@ -203,7 +180,6 @@ export function useNotifications() {
           preserveScroll: true,
           preserveState: false,
           onSuccess: (page) => {
-            console.log('✅ [clearAll] Server response SUCCESS');
             resolve();
           },
           onError: (errors) => {
@@ -211,7 +187,6 @@ export function useNotifications() {
             // Revert on error
             setNotifications(previousNotifications);
             setUnreadCount(previousUnreadCount);
-            console.log('↩️ [clearAll] Reverted optimistic updates');
             reject(errors);
           }
         }

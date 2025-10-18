@@ -73,7 +73,6 @@ export default function SecurityIndex({
             preserveState: true,
             preserveScroll: true,
             onSuccess: (page) => {
-                console.log('2FA Enable Success');
             },
             onError: (errors) => {
                 console.error('2FA Enable Error:', errors);

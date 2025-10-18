@@ -65,14 +65,32 @@ export default function DashboardHeader({ user, toggleSidebar, isCollapsed, togg
   };
 
   const handleNotificationClick = async (notification) => {
+    console.log('🔔 Notification clicked:', notification);
+    console.log('📊 Is read status:', notification.is_read);
+    console.log('🔗 Action URL:', notification.action_url);
+    console.log('🔗 Link:', notification.link);
+
     setShowNotifications(false);
 
     if (!notification.is_read) {
-      await markAsRead(notification.id);
+      console.log('📝 Marking notification as read...');
+      try {
+        await markAsRead(notification.id);
+        console.log('✅ Successfully marked as read');
+      } catch (error) {
+        console.error('❌ Error marking as read:', error);
+      }
+    } else {
+      console.log('ℹ️ Notification already read, skipping mark as read');
     }
 
-    if (notification.action_url) {
-      router.visit(notification.action_url);
+    // ✅ FIXED: Support both action_url and link fields (like AdminHeader)
+    const targetUrl = notification.action_url || notification.link;
+    if (targetUrl) {
+      console.log('🚀 Navigating to:', targetUrl);
+      router.visit(targetUrl);
+    } else {
+      console.log('⚠️ No action_url or link found for notification');
     }
   };
 
