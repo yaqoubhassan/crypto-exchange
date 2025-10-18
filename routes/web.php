@@ -8,6 +8,26 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 
+use App\Mail\NotificationMail;
+use Illuminate\Support\Facades\Mail;
+
+Route::get('/test-email', function () {
+    try {
+        Mail::to('yaqoubdramani@gmail.com')->send(
+            new NotificationMail(
+                type: 'test',
+                title: 'Test Email',
+                message: 'This is a test email from your Laravel application using Resend!',
+                link: '/dashboard'
+            )
+        );
+
+        return 'Email sent successfully! Check your inbox.';
+    } catch (\Exception $e) {
+        return 'Failed to send email: ' . $e->getMessage();
+    }
+});
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
