@@ -1,221 +1,240 @@
 import { Link } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import LiveMarketTicker from './LiveMarketTicker';
 
-export default function HeroSection() {
+export default function HeroSection({ auth }) {
     const [animatedStats, setAnimatedStats] = useState({
         users: 0,
         volume: 0,
         trades: 0
     });
 
-    const [currentPrice, setCurrentPrice] = useState(45234.67);
-    const [priceChange, setPriceChange] = useState(2.34);
+    // Animation variants
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.15,
+                delayChildren: 0.3
+            }
+        }
+    };
 
-    // Animate statistics
+    const itemVariants = {
+        hidden: { opacity: 0, y: 30 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: { duration: 0.6, ease: "easeOut" }
+        }
+    };
+
+    // Animate stats on mount
     useEffect(() => {
-        const targets = { users: 50000, volume: 2.5, trades: 1000000 };
         const duration = 2000;
         const steps = 60;
-        const stepDuration = duration / steps;
+        const interval = duration / steps;
 
-        let step = 0;
-        const interval = setInterval(() => {
-            step++;
-            const progress = step / steps;
-            
+        const targets = {
+            users: 50000,
+            volume: 24.5,
+            trades: 1000000
+        };
+
+        let currentStep = 0;
+
+        const timer = setInterval(() => {
+            currentStep++;
+            const progress = currentStep / steps;
+
             setAnimatedStats({
                 users: Math.floor(targets.users * progress),
                 volume: (targets.volume * progress).toFixed(1),
                 trades: Math.floor(targets.trades * progress)
             });
 
-            if (step >= steps) {
-                clearInterval(interval);
+            if (currentStep >= steps) {
+                clearInterval(timer);
+                setAnimatedStats(targets);
             }
-        }, stepDuration);
+        }, interval);
 
-        return () => clearInterval(interval);
+        return () => clearInterval(timer);
     }, []);
-
-    // Animate price changes
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const change = (Math.random() - 0.5) * 100;
-            setCurrentPrice(prev => Math.max(prev + change, 30000));
-            setPriceChange((Math.random() - 0.5) * 5);
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, []);
-
-    const cryptos = [
-        { symbol: "BTC", name: "Bitcoin", price: 45234.67, change: 2.34, color: "from-orange-400 to-orange-600" },
-        { symbol: "ETH", name: "Ethereum", price: 2834.12, change: -1.23, color: "from-blue-400 to-blue-600" },
-        { symbol: "BNB", name: "Binance Coin", price: 315.25, change: 4.56, color: "from-yellow-400 to-yellow-600" },
-        { symbol: "SOL", name: "Solana", price: 98.75, change: 1.78, color: "from-purple-400 to-purple-600" },
-    ];
 
     return (
-        <section className="relative pt-24 md:pt-32 pb-12 md:pb-20 overflow-hidden">
-            {/* Animated Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-                <div 
-                    className="absolute top-20 left-10 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-                    style={{
-                        animation: 'blob 7s infinite'
+        <section className="relative min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 overflow-hidden pt-20">
+            {/* Animated background elements */}
+            <div className="absolute inset-0 overflow-hidden">
+                <motion.div
+                    className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"
+                    animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [0.3, 0.5, 0.3],
                     }}
-                ></div>
-                <div 
-                    className="absolute top-40 right-10 w-72 h-72 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-                    style={{
-                        animation: 'blob 7s infinite',
-                        animationDelay: '2s'
+                    transition={{
+                        duration: 8,
+                        repeat: Infinity,
+                        ease: "easeInOut"
                     }}
-                ></div>
-                <div 
-                    className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-                    style={{
-                        animation: 'blob 7s infinite',
-                        animationDelay: '4s'
+                />
+                <motion.div
+                    className="absolute bottom-20 right-10 w-96 h-96 bg-purple-300/10 rounded-full blur-3xl"
+                    animate={{
+                        scale: [1, 1.3, 1],
+                        opacity: [0.2, 0.4, 0.2],
                     }}
-                ></div>
+                    transition={{
+                        duration: 10,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: 1
+                    }}
+                />
+                <motion.div
+                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-pink-300/5 rounded-full blur-3xl"
+                    animate={{
+                        scale: [1, 1.15, 1],
+                        opacity: [0.1, 0.3, 0.1],
+                    }}
+                    transition={{
+                        duration: 12,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: 2
+                    }}
+                />
             </div>
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
                     {/* Left Content */}
-                    <div className="space-y-6 md:space-y-8 text-center lg:text-left">
+                    <motion.div
+                        className="space-y-6 md:space-y-8 text-center lg:text-left"
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="visible"
+                    >
                         {/* Badge */}
-                        <div className="inline-flex items-center px-4 py-2 bg-indigo-100 rounded-full text-indigo-700 text-sm font-semibold">
-                            <span className="w-2 h-2 bg-indigo-600 rounded-full mr-2 animate-pulse"></span>
+                        <motion.div
+                            variants={itemVariants}
+                            className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-semibold"
+                        >
+                            <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
                             Trusted by 50,000+ traders worldwide
-                        </div>
+                        </motion.div>
 
                         {/* Headline */}
-                        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
+                        <motion.h1
+                            variants={itemVariants}
+                            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight"
+                        >
                             Trade Crypto
                             <br />
-                            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            <span className="bg-gradient-to-r from-yellow-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
                                 with Confidence
                             </span>
-                        </h1>
+                        </motion.h1>
 
                         {/* Description */}
-                        <p className="text-lg sm:text-xl text-gray-600 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                            The most trusted cryptocurrency exchange platform. Buy, sell, and trade Bitcoin, Ethereum, and 100+ cryptocurrencies with industry-leading security and ultra-low fees.
-                        </p>
+                        <motion.p
+                            variants={itemVariants}
+                            className="text-lg sm:text-xl text-white/90 leading-relaxed max-w-2xl mx-auto lg:mx-0"
+                        >
+                            The most trusted cryptocurrency exchange platform. Buy, sell, and trade Bitcoin, Ethereum, and 100+ cryptocurrencies with industry-leading security.
+                        </motion.p>
 
                         {/* CTA Buttons */}
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                            <Link
-                                href={route('register')}
-                                className="group relative inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                        <motion.div
+                            variants={itemVariants}
+                            className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+                        >
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                             >
-                                Start Trading Free
-                                <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </Link>
-                            <button className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-300 text-gray-700 font-semibold text-lg rounded-xl hover:border-indigo-600 hover:text-indigo-600 transition-all duration-300">
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <Link
+                                    href={auth.user ? route('dashboard') : route('register')}
+                                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl"
+                                >
+                                    {auth.user ? 'Go to Dashboard' : 'Get Started Free'}
+                                    <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    </svg>
+                                </Link>
+                            </motion.div>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="inline-flex items-center justify-center px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all border border-white/30"
+                            >
+                                <svg className="mr-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 Watch Demo
-                            </button>
-                        </div>
+                            </motion.button>
+                        </motion.div>
 
                         {/* Live Stats */}
-                        <div className="grid grid-cols-3 gap-4 md:gap-6 pt-6 md:pt-8">
-                            <div className="text-center lg:text-left">
-                                <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        <motion.div
+                            variants={itemVariants}
+                            className="grid grid-cols-3 gap-4 md:gap-6 pt-6 md:pt-8"
+                        >
+                            <motion.div
+                                className="text-center lg:text-left"
+                                whileHover={{ scale: 1.05 }}
+                            >
+                                <div className="text-2xl md:text-3xl font-bold text-white">
                                     {animatedStats.users.toLocaleString()}+
                                 </div>
-                                <div className="text-sm md:text-base text-gray-600 font-medium">Active Users</div>
-                            </div>
-                            <div className="text-center lg:text-left">
-                                <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                <div className="text-sm md:text-base text-white/80 font-medium">Active Users</div>
+                            </motion.div>
+                            <motion.div
+                                className="text-center lg:text-left"
+                                whileHover={{ scale: 1.05 }}
+                            >
+                                <div className="text-2xl md:text-3xl font-bold text-white">
                                     ${animatedStats.volume}B+
                                 </div>
-                                <div className="text-sm md:text-base text-gray-600 font-medium">Trading Volume</div>
-                            </div>
-                            <div className="text-center lg:text-left">
-                                <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                <div className="text-sm md:text-base text-white/80 font-medium">Trading Volume</div>
+                            </motion.div>
+                            <motion.div
+                                className="text-center lg:text-left"
+                                whileHover={{ scale: 1.05 }}
+                            >
+                                <div className="text-2xl md:text-3xl font-bold text-white">
                                     {animatedStats.trades.toLocaleString()}+
                                 </div>
-                                <div className="text-sm md:text-base text-gray-600 font-medium">Trades</div>
-                            </div>
-                        </div>
-                    </div>
+                                <div className="text-sm md:text-base text-white/80 font-medium">Trades</div>
+                            </motion.div>
+                        </motion.div>
+                    </motion.div>
 
-                    {/* Right Content - Price Cards */}
-                    <div className="space-y-4 md:space-y-6">
-                        {/* Live Prices Card */}
-                        <div className="bg-white/80 backdrop-blur-lg rounded-2xl md:rounded-3xl shadow-2xl p-4 md:p-6 border border-gray-200">
-                            <div className="flex items-center justify-between mb-4 md:mb-6">
-                                <h3 className="text-lg md:text-xl font-bold text-gray-900">Live Prices</h3>
-                                <div className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                    <span className="text-xs md:text-sm text-gray-600 font-medium">Real-time</span>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-3 md:space-y-4">
-                                {cryptos.map((crypto) => (
-                                    <div key={crypto.symbol} className="flex items-center justify-between p-3 md:p-4 hover:bg-gray-50 rounded-xl transition-all duration-200 cursor-pointer group">
-                                        <div className="flex items-center space-x-3 md:space-x-4">
-                                            <div className={`w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br ${crypto.color} rounded-xl flex items-center justify-center text-white font-bold text-sm md:text-base shadow-md group-hover:shadow-lg transition-shadow`}>
-                                                {crypto.symbol.substring(0, 2)}
-                                            </div>
-                                            <div>
-                                                <div className="font-semibold text-gray-900 text-sm md:text-base">{crypto.name}</div>
-                                                <div className="text-xs md:text-sm text-gray-500">{crypto.symbol}</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="font-bold text-gray-900 text-sm md:text-base">
-                                                ${crypto.price.toLocaleString()}
-                                            </div>
-                                            <div className={`text-xs md:text-sm font-semibold ${
-                                                crypto.change >= 0 ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                                {crypto.change >= 0 ? '+' : ''}{crypto.change}%
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Quick Trade Card */}
-                        <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-8 text-white relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
-                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
-                            
-                            <div className="relative">
-                                <h3 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Quick Trade</h3>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-white/90 text-sm md:text-base">Bitcoin (BTC)</span>
-                                        <span className="text-xl md:text-2xl font-bold">${currentPrice.toLocaleString()}</span>
-                                    </div>
-                                    <div className={`text-sm md:text-base font-semibold ${priceChange >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                                        {priceChange >= 0 ? '↗' : '↘'} {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}% (24h)
-                                    </div>
-                                    <Link
-                                        href={route('register')}
-                                        className="block w-full bg-white text-indigo-600 text-center py-3 md:py-4 rounded-xl font-bold hover:bg-gray-100 transition-colors shadow-lg text-sm md:text-base"
-                                    >
-                                        Trade Now →
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Right Content - Live Market Prices */}
+                    <motion.div
+                        className="space-y-4 md:space-y-6"
+                        initial={{ opacity: 0, x: 50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.8, delay: 0.4 }}
+                    >
+                        <motion.div
+                            animate={{
+                                y: [0, -10, 0]
+                            }}
+                            transition={{
+                                duration: 4,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }}
+                        >
+                            <LiveMarketTicker />
+                        </motion.div>
+                    </motion.div>
                 </div>
             </div>
-
-            
         </section>
     );
 }
