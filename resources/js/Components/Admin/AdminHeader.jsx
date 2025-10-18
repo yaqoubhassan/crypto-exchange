@@ -7,9 +7,13 @@ import Toast from '@/Components/Trading/Toast';
 import { useNotifications } from '@/Hooks/useNotifications';
 
 export default function AdminHeader({ user, stats, selectedTimeframe, onTimeframeChange, toggleSidebar, isCollapsed, toggleCollapse }) {
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [showClearModal, setShowClearModal] = useState(false);
+    const [clearing, setClearing] = useState(false);
+    const [toast, setToast] = useState(null);
+
     const { flash } = usePage().props;
 
-    // Use the notifications hook for real-time updates
     const {
         notifications,
         unreadCount,
@@ -17,12 +21,8 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
         markAsRead,
         markAllAsRead,
         clearAll,
+        requestNotificationPermission
     } = useNotifications();
-
-    const [showNotifications, setShowNotifications] = useState(false);
-    const [showClearModal, setShowClearModal] = useState(false);
-    const [clearing, setClearing] = useState(false);
-    const [toast, setToast] = useState(null);
 
     // Show toast for flash messages
     useEffect(() => {

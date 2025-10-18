@@ -40,8 +40,9 @@ class NotificationController extends Controller
 
         $notification->markAsRead();
 
-        // ✅ Clear the relationship cache
+        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
+        auth()->user()->unsetRelation('unreadNotifications');
 
         Log::info('✅ [markAsRead] Notification marked as read', [
             'id' => $notification->id,
@@ -66,8 +67,9 @@ class NotificationController extends Controller
             'read_at' => now(),
         ]);
 
-        // ✅ Clear the relationship cache
+        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
+        auth()->user()->unsetRelation('unreadNotifications');
 
         Log::info('✅ [markAllAsRead] Notifications updated', [
             'updated_count' => $updated,
@@ -87,8 +89,9 @@ class NotificationController extends Controller
 
         auth()->user()->notifications()->delete();
 
-        // ✅ Clear the relationship cache
+        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
+        auth()->user()->unsetRelation('unreadNotifications');
 
         Log::info('✅ [clearAll] Notifications deleted', [
             'deleted_count' => $count,
@@ -111,8 +114,9 @@ class NotificationController extends Controller
         // Mark as read
         $notification->markAsRead();
 
-        // ✅ Clear the relationship cache
+        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
+        auth()->user()->unsetRelation('unreadNotifications');
 
         // Redirect to the notification's link if it exists
         if ($notification->link) {
@@ -133,8 +137,9 @@ class NotificationController extends Controller
 
         $notification->delete();
 
-        // ✅ Clear the relationship cache
+        // ✅ CRITICAL: Clear BOTH notification relationship caches
         auth()->user()->unsetRelation('notifications');
+        auth()->user()->unsetRelation('unreadNotifications');
 
         return back()->with('success', 'Notification deleted successfully');
     }

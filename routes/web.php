@@ -174,6 +174,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/settings', [App\Http\Controllers\Admin\AdminSettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings/notifications', [App\Http\Controllers\Admin\AdminSettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::post('/settings/display', [App\Http\Controllers\Admin\AdminSettingsController::class, 'updateDisplay'])->name('settings.display');
+
+    //Notifications routes
+    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{id}/read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::get('/notifications/{id}/click', [App\Http\Controllers\NotificationController::class, 'handleClick'])->name('notifications.click');
+    Route::post('/notifications/mark-all-read', [App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::delete('/notifications/clear-all', [App\Http\Controllers\NotificationController::class, 'clearAll'])->name('notifications.clear-all');
+    Route::delete('/notifications/{id}', [App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
 });
 
 require __DIR__ . '/auth.php';
