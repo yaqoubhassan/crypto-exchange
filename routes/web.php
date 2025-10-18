@@ -166,8 +166,9 @@ Route::middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
         Route::post('/cryptocurrencies/{cryptocurrency}/toggle-status', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'toggleStatus'])->name('cryptocurrencies.toggle-status');
         Route::delete('/cryptocurrencies/{cryptocurrency}', [App\Http\Controllers\Admin\CryptocurrencyController::class, 'destroy'])->name('cryptocurrencies.destroy');
 
-        // Reports (for future use)
+        // Reports
         Route::get('/reports', [App\Http\Controllers\Admin\AdminController::class, 'reports'])->name('reports');
+        Route::post('/reports/export', [App\Http\Controllers\Admin\AdminController::class, 'exportReport'])->name('reports.export');
 
         // Support management
         Route::get('/support', [App\Http\Controllers\Admin\SupportController::class, 'index'])->name('support.index');

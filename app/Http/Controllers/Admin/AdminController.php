@@ -561,23 +561,62 @@ class AdminController extends Controller
         ]);
     }
 
-    public function reports()
+    public function reports(Request $request)
     {
-        // Trading volume report data
-        $tradingVolume = \App\Models\Transaction::whereIn('type', ['buy', 'sell'])
-            ->where('status', 'completed')
-            ->where('created_at', '>=', now()->subDays(30))
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(amount * price) as volume')
-            )
-            ->groupBy('date')
-            ->orderBy('date', 'desc')
-            ->get();
+        // Determine date range based on request
+        $range = $request->get('range', '30days');
+        $startDate = null;
+        $endDate = now();
 
-        // Revenue report data
+        switch ($range) {
+            case '7days':
+                $startDate = now()->subDays(7);
+                break;
+            case '30days':
+                $startDate = now()->subDays(30);
+                break;
+            case '90days':
+                $startDate = now()->subDays(90);
+                break;
+            case 'ytd':
+                $startDate = now()->startOfYear();
+                break;
+            case 'custom':
+                $startDate = $request->get('start_date') ? \Carbon\Carbon::parse($request->get('start_date')) : now()->subDays(30);
+                $endDate = $request->get('end_date') ? \Carbon\Carbon::parse($request->get('end_date')) : now();
+                break;
+            default:
+                $startDate = now()->subDays(30);
+        }
+
+        // Trading volume by cryptocurrency pairs
+        $tradingVolume = \App\Models\Order::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->where('status', 'filled')
+            ->with(['baseCurrency', 'quoteCurrency'])
+            ->select(
+                'base_currency_id',
+                'quote_currency_id',
+                DB::raw('SUM(quantity * COALESCE(price, 0)) as total_volume'),
+                DB::raw('COUNT(*) as order_count')
+            )
+            ->groupBy('base_currency_id', 'quote_currency_id')
+            ->orderBy('total_volume', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'base_symbol' => $item->baseCurrency->symbol ?? 'N/A',
+                    'quote_symbol' => $item->quoteCurrency->symbol ?? 'N/A',
+                    'total_volume' => $item->total_volume,
+                    'order_count' => $item->order_count,
+                ];
+            });
+
+        // Revenue data
         $revenueData = \App\Models\Transaction::where('status', 'completed')
-            ->where('created_at', '>=', now()->subDays(30))
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(fee) as revenue'),
@@ -589,21 +628,303 @@ class AdminController extends Controller
 
         // User activity report
         $userActivity = [
-            'new_registrations' => \App\Models\User::where('created_at', '>=', now()->subDays(30))
+            'new_registrations' => \App\Models\User::where('created_at', '>=', $startDate)
+                ->where('created_at', '<=', $endDate)
                 ->count(),
-            'active_traders' => \App\Models\Order::where('created_at', '>=', now()->subDays(30))
+            'active_traders' => \App\Models\Order::where('created_at', '>=', $startDate)
+                ->where('created_at', '<=', $endDate)
                 ->distinct('user_id')
                 ->count('user_id'),
             'kyc_completed' => \App\Models\UserKyc::where('verification_status', 'approved')
-                ->where('verified_at', '>=', now()->subDays(30))
+                ->where('verified_at', '>=', $startDate)
+                ->where('verified_at', '<=', $endDate)
                 ->count(),
         ];
 
-        return Inertia::render('Admin/Reports', [
+        return Inertia::render('Admin/Reports/Index', [
             'tradingVolume' => $tradingVolume,
             'revenueData' => $revenueData,
             'userActivity' => $userActivity,
+            'filters' => [
+                'range' => $range,
+                'start_date' => $request->get('start_date'),
+                'end_date' => $request->get('end_date'),
+            ],
         ]);
+    }
+
+    public function exportReport(Request $request)
+    {
+        try {
+            $request->validate([
+                'type' => 'required|in:overview,revenue,trading,users,transactions',
+                'format' => 'required|in:csv,pdf,excel',
+                'range' => 'required|string',
+            ]);
+
+            $type = $request->type;
+            $format = $request->format;
+            $range = $request->range;
+
+            // Determine date range
+            $startDate = null;
+            $endDate = now();
+
+            switch ($range) {
+                case '7days':
+                    $startDate = now()->subDays(7);
+                    break;
+                case '30days':
+                    $startDate = now()->subDays(30);
+                    break;
+                case '90days':
+                    $startDate = now()->subDays(90);
+                    break;
+                case 'ytd':
+                    $startDate = now()->startOfYear();
+                    break;
+                case 'custom':
+                    $startDate = $request->start_date ? \Carbon\Carbon::parse($request->start_date) : now()->subDays(30);
+                    $endDate = $request->end_date ? \Carbon\Carbon::parse($request->end_date) : now();
+                    break;
+                default:
+                    $startDate = now()->subDays(30);
+            }
+
+            // Generate filename
+            $timestamp = now()->format('Y-m-d_His');
+
+            // Handle different export formats
+            if ($format === 'csv') {
+                $filename = "{$type}-report-{$timestamp}.csv";
+                return $this->exportCSV($type, $startDate, $endDate, $filename);
+            } elseif ($format === 'excel') {
+                $filename = "{$type}-report-{$timestamp}.csv"; // Excel can open CSV
+                return $this->exportCSV($type, $startDate, $endDate, $filename);
+            } elseif ($format === 'pdf') {
+                // PDF not fully implemented yet
+                return redirect()->back()->with('info', 'PDF export is coming soon. Please use CSV or Excel format.');
+            }
+
+            return redirect()->back()->with('error', 'Invalid export format');
+        } catch (\Exception $e) {
+            \Log::error('Report export error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to export report: ' . $e->getMessage());
+        }
+    }
+
+    private function exportCSV($type, $startDate, $endDate, $filename)
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        return response()->stream(function () use ($type, $startDate, $endDate) {
+            $file = fopen('php://output', 'w');
+
+            // Add UTF-8 BOM for proper Excel handling
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // Add report header
+            fputcsv($file, ['Report Type', ucfirst($type)]);
+            fputcsv($file, ['Generated On', now()->format('Y-m-d H:i:s')]);
+            fputcsv($file, ['Date Range', $startDate->format('Y-m-d') . ' to ' . $endDate->format('Y-m-d')]);
+            fputcsv($file, []); // Empty row
+
+            try {
+                switch ($type) {
+                    case 'revenue':
+                        $this->exportRevenueCSV($file, $startDate, $endDate);
+                        break;
+                    case 'trading':
+                        $this->exportTradingCSV($file, $startDate, $endDate);
+                        break;
+                    case 'users':
+                        $this->exportUsersCSV($file, $startDate, $endDate);
+                        break;
+                    case 'transactions':
+                        $this->exportTransactionsCSV($file, $startDate, $endDate);
+                        break;
+                    case 'overview':
+                    default:
+                        $this->exportOverviewCSV($file, $startDate, $endDate);
+                        break;
+                }
+            } catch (\Exception $e) {
+                fputcsv($file, ['Error', $e->getMessage()]);
+                \Log::error('CSV Export Error: ' . $e->getMessage());
+            }
+
+            fclose($file);
+        }, 200, $headers);
+    }
+
+    private function exportRevenueCSV($file, $startDate, $endDate)
+    {
+        fputcsv($file, ['Date', 'Revenue', 'Transactions', 'Average Transaction Value']);
+
+        $revenueData = \App\Models\Transaction::where('status', 'completed')
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(fee) as revenue'),
+                DB::raw('COUNT(*) as transaction_count'),
+                DB::raw('AVG(fee) as avg_transaction_value')
+            )
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+
+        foreach ($revenueData as $row) {
+            fputcsv($file, [
+                $row->date,
+                number_format($row->revenue, 2),
+                $row->transaction_count,
+                number_format($row->avg_transaction_value, 2),
+            ]);
+        }
+    }
+
+    private function exportTradingCSV($file, $startDate, $endDate)
+    {
+        fputcsv($file, ['Trading Pair', 'Total Volume', 'Order Count', 'Average Order Size']);
+
+        $tradingVolume = \App\Models\Order::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->where('status', 'filled')
+            ->with(['baseCurrency', 'quoteCurrency'])
+            ->select(
+                'base_currency_id',
+                'quote_currency_id',
+                DB::raw('SUM(quantity * COALESCE(price, 0)) as total_volume'),
+                DB::raw('COUNT(*) as order_count'),
+                DB::raw('AVG(quantity * COALESCE(price, 0)) as avg_order_size')
+            )
+            ->groupBy('base_currency_id', 'quote_currency_id')
+            ->orderBy('total_volume', 'desc')
+            ->get();
+
+        foreach ($tradingVolume as $row) {
+            fputcsv($file, [
+                ($row->baseCurrency->symbol ?? 'N/A') . '/' . ($row->quoteCurrency->symbol ?? 'N/A'),
+                number_format($row->total_volume, 2),
+                $row->order_count,
+                number_format($row->avg_order_size, 2),
+            ]);
+        }
+    }
+
+    private function exportUsersCSV($file, $startDate, $endDate)
+    {
+        fputcsv($file, ['Metric', 'Count']);
+
+        $newRegistrations = \App\Models\User::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->count();
+
+        $activeTraders = \App\Models\Order::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $kycCompleted = \App\Models\UserKyc::where('verification_status', 'approved')
+            ->where('verified_at', '>=', $startDate)
+            ->where('verified_at', '<=', $endDate)
+            ->count();
+
+        fputcsv($file, ['New Registrations', $newRegistrations]);
+        fputcsv($file, ['Active Traders', $activeTraders]);
+        fputcsv($file, ['KYC Completed', $kycCompleted]);
+        fputcsv($file, ['Trader Conversion Rate', $newRegistrations > 0 ? number_format(($activeTraders / $newRegistrations) * 100, 2) . '%' : '0%']);
+        fputcsv($file, ['KYC Completion Rate', $newRegistrations > 0 ? number_format(($kycCompleted / $newRegistrations) * 100, 2) . '%' : '0%']);
+    }
+
+    private function exportTransactionsCSV($file, $startDate, $endDate)
+    {
+        fputcsv($file, ['Date', 'Total Transactions', 'Completed', 'Failed', 'Pending']);
+
+        $transactionData = \App\Models\Transaction::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed'),
+                DB::raw('SUM(CASE WHEN status = "failed" THEN 1 ELSE 0 END) as failed'),
+                DB::raw('SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending')
+            )
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+
+        foreach ($transactionData as $row) {
+            fputcsv($file, [
+                $row->date,
+                $row->total,
+                $row->completed,
+                $row->failed,
+                $row->pending,
+            ]);
+        }
+    }
+
+    private function exportOverviewCSV($file, $startDate, $endDate)
+    {
+        // Summary statistics
+        fputcsv($file, ['Summary Statistics']);
+        fputcsv($file, []); // Empty row
+
+        $totalRevenue = \App\Models\Transaction::where('status', 'completed')
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->sum('fee');
+
+        $totalTransactions = \App\Models\Transaction::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->count();
+
+        $totalVolume = \App\Models\Order::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->where('status', 'filled')
+            ->sum(DB::raw('quantity * COALESCE(price, 0)'));
+
+        $newUsers = \App\Models\User::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->count();
+
+        fputcsv($file, ['Total Revenue', number_format($totalRevenue, 2)]);
+        fputcsv($file, ['Total Transactions', $totalTransactions]);
+        fputcsv($file, ['Trading Volume', number_format($totalVolume, 2)]);
+        fputcsv($file, ['New Users', $newUsers]);
+        fputcsv($file, []); // Empty row
+
+        // Revenue breakdown
+        fputcsv($file, ['Revenue Details']);
+        $this->exportRevenueCSV($file, $startDate, $endDate);
+        fputcsv($file, []); // Empty row
+
+        // Trading volume breakdown
+        fputcsv($file, ['Trading Volume Details']);
+        $this->exportTradingCSV($file, $startDate, $endDate);
+    }
+
+    private function exportExcel($type, $startDate, $endDate, $filename)
+    {
+        // For Excel export, we'll use the same CSV approach but with .xlsx extension
+        // In production, you'd use a package like PhpSpreadsheet or Laravel Excel
+        // For now, return CSV with excel extension (Excel can open CSV files)
+        return $this->exportCSV($type, $startDate, $endDate, str_replace('.excel', '.csv', $filename));
+    }
+
+    private function exportPDF($type, $startDate, $endDate, $filename)
+    {
+        // For PDF export, you'd typically use a package like DomPDF or wkhtmltopdf
+        // For now, we'll return an error message suggesting CSV export
+        return back()->with('info', 'PDF export is coming soon. Please use CSV or Excel format for now.');
     }
 
     private function getCommonStats()
