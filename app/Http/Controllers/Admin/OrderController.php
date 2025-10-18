@@ -91,6 +91,7 @@ class OrderController extends Controller
         // Try to find by order_id first, then by database id
         $order = Order::where('order_id', $id)
             ->orWhere('id', $id)
+            ->with(['user', 'baseCurrency', 'quoteCurrency'])
             ->firstOrFail();
 
         // Redirect to orders page with order_id as query parameter

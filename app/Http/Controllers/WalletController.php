@@ -106,7 +106,7 @@ class WalletController extends Controller
                 title: '⚠️ Large Transaction Alert',
                 message: "{$user->name} deposited {$request->amount} {$cryptocurrency->symbol} (≈ \${$usdValue})",
                 icon: '⚠️',
-                link: "/admin/transactions/{$transaction->id}",
+                link: "/admin/transactions/{$transaction->transaction_id}",
                 data: [
                     'transaction_id' => $transaction->transaction_id,
                     'user_id' => $user->id,
@@ -170,7 +170,7 @@ class WalletController extends Controller
             title: '💵 New Deposit Request',
             message: "{$user->name} requested a deposit of {$request->amount} {$cryptocurrency->symbol}",
             icon: '💵',
-            link: "/admin/transactions/{$transaction->id}",
+            link: "/admin/transactions/{$transaction->transaction_id}",
             data: [
                 'transaction_id' => $transaction->transaction_id,
                 'user_id' => $user->id,
@@ -252,7 +252,7 @@ class WalletController extends Controller
                 title: '⚠️ Large Withdrawal Alert',
                 message: "{$user->name} requested withdrawal of {$request->amount} {$cryptocurrency->symbol} (≈ \${$usdValue})",
                 icon: '⚠️',
-                link: "/admin/transactions/{$transaction->id}",
+                link: "/admin/transactions/{$transaction->transaction_id}",
                 data: [
                     'transaction_id' => $transaction->transaction_id,
                     'user_id' => $user->id,
@@ -288,7 +288,7 @@ class WalletController extends Controller
             title: '💸 New Withdrawal Request',
             message: "{$user->name} requested a withdrawal of {$request->amount} {$cryptocurrency->symbol}",
             icon: '💸',
-            link: "/admin/transactions/{$transaction->id}",
+            link: "/admin/transactions/{$transaction->transaction_id}",
             data: [
                 'transaction_id' => $transaction->transaction_id,
                 'user_id' => $user->id,

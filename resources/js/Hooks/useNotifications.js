@@ -11,10 +11,8 @@ export function useNotifications() {
   const [newNotification, setNewNotification] = useState(null);
 
   // Play notification sound
-  // Play notification sound
   const playNotificationSound = useCallback(() => {
     try {
-      // Create a simple beep using Web Audio API
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
@@ -22,8 +20,8 @@ export function useNotifications() {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      oscillator.frequency.value = 800; // Frequency in Hz
-      oscillator.type = 'sine'; // Sine wave
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
 
       gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
@@ -69,32 +67,26 @@ export function useNotifications() {
   useEffect(() => {
     if (!auth?.user?.id) return;
 
-    // Check if Echo is available
     if (!window.Echo) {
       console.error('Echo is not initialized. Make sure echo.js is imported in your app.');
       return;
     }
 
-    // Listen to private user channel for notifications
     const channel = window.Echo.private(`user.${auth.user.id}`);
 
     channel.listen('.notification.sent', (data) => {
       console.log('New notification received:', data);
 
-      // Update notifications list
       setNotifications(prev => [data, ...prev]);
       setUnreadCount(prev => prev + 1);
       setNewNotification(data);
 
-      // Play sound and show browser notification
       playNotificationSound();
       showBrowserNotification(data);
 
-      // Clear the new notification indicator after 5 seconds
       setTimeout(() => setNewNotification(null), 5000);
     });
 
-    // Cleanup on unmount
     return () => {
       channel.stopListening('.notification.sent');
       window.Echo.leave(`user.${auth.user.id}`);
@@ -107,53 +99,151 @@ export function useNotifications() {
     setUnreadCount(initialUnreadCount);
   }, [initialNotifications, initialUnreadCount]);
 
+  // ✅ FIXED: Use correct route and handle response properly
   const markAsRead = useCallback((notificationId) => {
+    return new Promise((resolve, reject) => {
+      console.log('🔧 [markAsRead] Starting for notification ID:', notificationId);
+      console.log('📊 [markAsRead] Current notifications count:', notifications.length);
+      console.log('📊 [markAsRead] Current unread count:', unreadCount);
 
-    // Optimistically update the UI first
-    setNotifications(prev =>
-      prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+      // Optimistically update the UI first
+      setNotifications(prev => {
+        const updated = prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n);
+        console.log('✅ [markAsRead] Optimistically updated UI');
+        return updated;
+      });
+      setUnreadCount(prev => {
+        const newCount = Math.max(0, prev - 1);
+        console.log('✅ [markAsRead] Optimistically updated unread count:', newCount);
+        return newCount;
+      });
 
-    // Then send the request to the server
-    router.post(route('notifications.read', notificationId), {}, {
-      preserveScroll: true,
-      preserveState: true,
-      only: ['notifications', 'unreadCount'], // Only reload these props
-      onSuccess: (page) => {
-        console.log('Successfully marked as read on server', page);
-      },
-      onError: (errors) => {
-        console.error('Error marking as read:', errors);
-        // Revert optimistic update on error
-        setNotifications(prev =>
-          prev.map(n => n.id === notificationId ? { ...n, is_read: false } : n)
-        );
-        setUnreadCount(prev => prev + 1);
-      }
+      // Send request to server - using correct route name
+      const routeUrl = route('notifications.read', notificationId);
+      console.log('🌐 [markAsRead] Posting to route:', routeUrl);
+
+      router.post(
+        routeUrl,
+        {},
+        {
+          preserveScroll: true,
+          // ✅ Removed preserveState to allow shared props to refresh
+          onSuccess: (page) => {
+            console.log('✅ [markAsRead] Server response SUCCESS');
+            console.log('📦 [markAsRead] Response page data:', page);
+            console.log('📊 [markAsRead] New notifications from server:', page.props.notifications?.length);
+            console.log('📊 [markAsRead] New unread count from server:', page.props.unreadCount);
+            resolve();
+          },
+          onError: (errors) => {
+            console.error('❌ [markAsRead] Server response ERROR:', errors);
+            // Revert optimistic update on error
+            setNotifications(prev =>
+              prev.map(n => n.id === notificationId ? { ...n, is_read: false } : n)
+            );
+            setUnreadCount(prev => prev + 1);
+            console.log('↩️ [markAsRead] Reverted optimistic updates');
+            reject(errors);
+          }
+        }
+      );
     });
-  }, [notifications]);
+  }, [notifications.length, unreadCount]);
 
+  // ✅ FIXED: Use correct route name
   const markAllAsRead = useCallback(() => {
-    router.post('/notifications/mark-all-read', {}, {
-      preserveScroll: true,
-      preserveState: true,
-      onSuccess: () => {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-        setUnreadCount(0);
-      }
-    });
-  }, []);
+    return new Promise((resolve, reject) => {
+      console.log('🔧 [markAllAsRead] Starting...');
+      console.log('📊 [markAllAsRead] Current unread count:', unreadCount);
+      console.log('📊 [markAllAsRead] Total notifications:', notifications.length);
 
-  const clearAll = useCallback(() => {
-    router.delete('/notifications/clear-all', {
-      preserveScroll: true,
-      onSuccess: () => {
-        setNotifications([]);
-        setUnreadCount(0);
-      }
+      // Optimistically update UI
+      setNotifications(prev => {
+        const updated = prev.map(n => ({ ...n, is_read: true }));
+        console.log('✅ [markAllAsRead] Optimistically marked all as read');
+        return updated;
+      });
+      const previousUnreadCount = unreadCount;
+      setUnreadCount(0);
+      console.log('✅ [markAllAsRead] Optimistically set unread count to 0');
+
+      const routeUrl = route('notifications.mark-all-read');
+      console.log('🌐 [markAllAsRead] Posting to route:', routeUrl);
+
+      router.post(
+        routeUrl,
+        {},
+        {
+          preserveScroll: true,
+          // ✅ Removed preserveState to allow shared props to refresh
+          onSuccess: (page) => {
+            console.log('✅ [markAllAsRead] Server response SUCCESS');
+            console.log('📦 [markAllAsRead] Response page data:', page);
+            console.log('📊 [markAllAsRead] New notifications from server:', page.props.notifications?.length);
+            console.log('📊 [markAllAsRead] New unread count from server:', page.props.unreadCount);
+            resolve();
+          },
+          onError: (errors) => {
+            console.error('❌ [markAllAsRead] Server response ERROR:', errors);
+            // Revert on error
+            setNotifications(prev =>
+              prev.map(n => {
+                const originalNotification = initialNotifications.find(orig => orig.id === n.id);
+                return originalNotification ? { ...n, is_read: originalNotification.is_read } : n;
+              })
+            );
+            setUnreadCount(previousUnreadCount);
+            console.log('↩️ [markAllAsRead] Reverted optimistic updates');
+            reject(errors);
+          }
+        }
+      );
     });
-  }, []);
+  }, [unreadCount, initialNotifications, notifications.length]);
+
+  // ✅ FIXED: Use correct route name
+  const clearAll = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      console.log('🔧 [clearAll] Starting...');
+      console.log('📊 [clearAll] Total notifications to clear:', notifications.length);
+      console.log('📊 [clearAll] Current unread count:', unreadCount);
+
+      // Store previous state for rollback
+      const previousNotifications = [...notifications];
+      const previousUnreadCount = unreadCount;
+
+      // Optimistically update UI
+      setNotifications([]);
+      setUnreadCount(0);
+      console.log('✅ [clearAll] Optimistically cleared all notifications');
+
+      const routeUrl = route('notifications.clear-all');
+      console.log('🌐 [clearAll] Deleting via route:', routeUrl);
+
+      router.delete(
+        routeUrl,
+        {
+          preserveScroll: true,
+          // ✅ Removed preserveState to allow shared props to refresh
+          onSuccess: (page) => {
+            console.log('✅ [clearAll] Server response SUCCESS');
+            console.log('📦 [clearAll] Response page data:', page);
+            console.log('📊 [clearAll] New notifications from server:', page.props.notifications?.length);
+            console.log('📊 [clearAll] New unread count from server:', page.props.unreadCount);
+            resolve();
+          },
+          onError: (errors) => {
+            console.error('❌ [clearAll] Server response ERROR:', errors);
+            // Revert on error
+            setNotifications(previousNotifications);
+            setUnreadCount(previousUnreadCount);
+            console.log('↩️ [clearAll] Reverted optimistic updates');
+            reject(errors);
+          }
+        }
+      );
+    });
+  }, [notifications, unreadCount]);
 
   return {
     notifications,

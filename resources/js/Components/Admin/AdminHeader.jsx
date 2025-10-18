@@ -55,40 +55,57 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
         router.post(route('logout'));
     };
 
+    // ✅ FIXED: Support both action_url and link fields
     const handleNotificationClick = async (notification) => {
-        // Close the dropdown immediately for better UX
+        console.log('🔔 Notification clicked:', notification);
+        console.log('📊 Is read status:', notification.is_read);
+        console.log('🔗 Action URL:', notification.action_url);
+        console.log('🔗 Link:', notification.link);
+
         setShowNotifications(false);
 
-        // Mark as read using the hook (if not already read)
         if (!notification.is_read) {
-            // Wait for the mark as read to complete before navigating
-            await new Promise((resolve) => {
-                router.post(route('notifications.read', notification.id), {}, {
-                    preserveScroll: true,
-                    preserveState: false,
-                    onFinish: resolve,
-                });
-            });
+            console.log('📝 Marking notification as read...');
+            try {
+                await markAsRead(notification.id);
+                console.log('✅ Successfully marked as read');
+            } catch (error) {
+                console.error('❌ Error marking as read:', error);
+            }
+        } else {
+            console.log('ℹ️ Notification already read, skipping mark as read');
         }
 
-        // Navigate to the notification URL if provided
-        if (notification.action_url) {
-            router.visit(notification.action_url);
+        // ✅ FIXED: Support both action_url (DashboardHeader) and link (database field)
+        const targetUrl = notification.action_url || notification.link;
+        if (targetUrl) {
+            console.log('🚀 Navigating to:', targetUrl);
+            router.visit(targetUrl);
+        } else {
+            console.log('⚠️ No action_url or link found for notification');
         }
     };
 
-    const handleMarkAllRead = () => {
-        markAllAsRead();
-        setToast({
-            message: 'All notifications marked as read',
-            type: 'success'
-        });
+    // ✅ Add logging to mark all as read
+    const handleMarkAllRead = async () => {
+        console.log('📝 Marking all notifications as read...');
+        console.log('📊 Current unread count:', unreadCount);
+        try {
+            await markAllAsRead();
+            console.log('✅ Successfully marked all as read');
+        } catch (error) {
+            console.error('❌ Error marking all as read:', error);
+        }
     };
 
+    // ✅ Add logging to clear all
     const handleClearAll = async () => {
+        console.log('🗑️ Clearing all notifications...');
+        console.log('📊 Total notifications:', notifications.length);
         setClearing(true);
         try {
             await clearAll();
+            console.log('✅ Successfully cleared all notifications');
             setShowClearModal(false);
             setShowNotifications(false);
             setToast({
@@ -96,6 +113,7 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                 type: 'success'
             });
         } catch (error) {
+            console.error('❌ Error clearing notifications:', error);
             setToast({
                 message: 'Failed to clear notifications',
                 type: 'error'
@@ -241,10 +259,10 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                         <div className="max-h-96 overflow-y-auto">
                                             {notifications.length > 0 ? (
                                                 notifications.map((notification) => (
-                                                    <div
+                                                    <button
                                                         key={notification.id}
                                                         onClick={() => handleNotificationClick(notification)}
-                                                        className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${!notification.is_read ? 'bg-blue-50' : ''
+                                                        className={`w-full p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors text-left ${!notification.is_read ? 'bg-blue-50' : ''
                                                             }`}
                                                     >
                                                         <div className="flex items-start space-x-3">
@@ -253,7 +271,8 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                                             </span>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-start justify-between">
-                                                                    <p className={`text-sm font-medium ${notification.is_read ? 'text-gray-700' : 'text-gray-900'
+                                                                    <p className={`text-sm font-medium ${notification.is_read ?
+                                                                        'text-gray-700' : 'text-gray-900'
                                                                         }`}>
                                                                         {notification.title}
                                                                     </p>
@@ -269,7 +288,7 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </button>
                                                 ))
                                             ) : (
                                                 <div className="p-8 text-center text-gray-500">
@@ -367,7 +386,8 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                     <div className="flex justify-end space-x-3">
                         <button
                             onClick={() => setShowClearModal(false)}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            disabled={clearing}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>

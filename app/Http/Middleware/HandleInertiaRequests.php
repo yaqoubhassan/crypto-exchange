@@ -44,9 +44,10 @@ class HandleInertiaRequests extends Middleware
                     'theme' => $request->user()->theme ?? 'light',
                 ] : null,
             ],
-            // Lazy load notifications - only fetched when accessed
+            // ✅ FIXED: Force fresh query by using fresh() on the user model
             'notifications' => fn() => $request->user()
-                ? $request->user()->notifications()
+                ? $request->user()->fresh() // Force fresh data from database
+                ->notifications()
                 ->orderBy('created_at', 'desc')
                 ->limit(10)
                 ->get()
@@ -63,8 +64,12 @@ class HandleInertiaRequests extends Middleware
                     'created_at' => $notification->created_at->toIso8601String(),
                 ])
                 : [],
+            // ✅ FIXED: Force fresh query for unread count
             'unreadCount' => fn() => $request->user()
-                ? $request->user()->notifications()->where('is_read', false)->count()
+                ? $request->user()->fresh() // Force fresh data from database
+                ->notifications()
+                ->where('is_read', false)
+                ->count()
                 : 0,
             // Flash messages
             'flash' => [

@@ -117,7 +117,9 @@ class TransactionManagementController extends Controller
      */
     public function approve(Request $request, $id)
     {
-        $transaction = \App\Models\Transaction::findOrFail($id);
+        $transaction = \App\Models\Transaction::where('transaction_id', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
 
         if ($transaction->status !== 'pending') {
             return back()->withErrors(['error' => 'Only pending transactions can be approved']);
@@ -147,7 +149,7 @@ class TransactionManagementController extends Controller
             title: 'Transaction Approved',
             message: "Your {$transaction->type} of {$transaction->amount} {$transaction->cryptocurrency->symbol} has been approved and completed successfully.",
             icon: '✅',
-            link: '/transactions',
+            link: "/transactions/{$transaction->transaction_id}",
             data: [
                 'transaction_id' => $transaction->transaction_id,
                 'type' => $transaction->type,
@@ -168,7 +170,9 @@ class TransactionManagementController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
-        $transaction = \App\Models\Transaction::findOrFail($id);
+        $transaction = \App\Models\Transaction::where('transaction_id', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
 
         if ($transaction->status !== 'pending') {
             return back()->withErrors(['error' => 'Only pending transactions can be rejected']);
@@ -196,7 +200,7 @@ class TransactionManagementController extends Controller
             title: 'Transaction Rejected',
             message: "Your {$transaction->type} has been rejected. Reason: {$request->reason}",
             icon: '❌',
-            link: '/transactions',
+            link: "/transactions/{$transaction->transaction_id}",
             data: [
                 'transaction_id' => $transaction->transaction_id,
                 'reason' => $request->reason,
