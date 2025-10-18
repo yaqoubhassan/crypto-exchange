@@ -3,7 +3,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import AdminStatCard from '@/Components/Admin/AdminStatCard';
 import AdminAlertBadge from '@/Components/Admin/AdminAlertBadge';
 import SupportTicketsWidget from '@/Components/Admin/SupportTicketsWidget';
-import { Link } from '@inertiajs/react';
+import TimeframeBadge from '@/Components/Admin/TimeframeBadge';
+import { Link, usePage } from '@inertiajs/react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard({
@@ -33,6 +34,8 @@ export default function AdminDashboard({
             value: Math.abs(percentage)
         };
     };
+
+    const { currentTimeframe } = usePage().props;
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -64,8 +67,14 @@ export default function AdminDashboard({
 
     return (
         <AdminLayout title="Admin Dashboard">
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-gray-900">Dashboard Overview</h2>
+                    <TimeframeBadge timeframe={currentTimeframe || '24h'} />
+                </div>
+            </div>
             {/* System Health Banner */}
-            {systemHealth && systemHealth.status !== 'healthy' && (
+            {/* {systemHealth && systemHealth.status !== 'healthy' && (
                 <div className="mb-4 sm:mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
                     <div className="flex items-start">
                         <span className="text-2xl mr-3 flex-shrink-0">⚠️</span>
@@ -75,7 +84,7 @@ export default function AdminDashboard({
                         </div>
                     </div>
                 </div>
-            )}
+            )} */}
 
             {/* Alerts Section - Now using real data from backend */}
             {visibleAlerts.length > 0 && (

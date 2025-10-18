@@ -114,7 +114,7 @@ export default function SupportIndex({ auth, tickets, stats, filters }) {
                 <select
                   value={activeFilters.status}
                   onChange={(e) => handleFilter('status', e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="all">All Status</option>
                   <option value="open">Open</option>
@@ -127,7 +127,7 @@ export default function SupportIndex({ auth, tickets, stats, filters }) {
                 <select
                   value={activeFilters.priority}
                   onChange={(e) => handleFilter('priority', e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="all">All Priority</option>
                   <option value="urgent">Urgent</option>
@@ -140,7 +140,7 @@ export default function SupportIndex({ auth, tickets, stats, filters }) {
                 <select
                   value={activeFilters.category}
                   onChange={(e) => handleFilter('category', e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="all">All Categories</option>
                   <option value="account">Account</option>

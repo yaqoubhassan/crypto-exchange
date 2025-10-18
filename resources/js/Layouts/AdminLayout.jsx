@@ -1,17 +1,39 @@
-import React, { useState } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, usePage, router } from '@inertiajs/react';
 import AdminSidebar from '@/Components/Admin/AdminSidebar';
 import AdminHeader from '@/Components/Admin/AdminHeader';
 import { ThemeProvider } from '@/Components/ThemeProvider';
 
 export default function AdminLayout({ children, title }) {
-  const { auth, stats } = usePage().props;
+  const { auth, stats, currentTimeframe } = usePage().props;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState('24h');
+  const [selectedTimeframe, setSelectedTimeframe] = useState(currentTimeframe || '24h');
 
   // Handle case where auth might be undefined
   const user = auth?.user || null;
+
+  // Update selectedTimeframe when it changes from backend
+  useEffect(() => {
+    if (currentTimeframe && currentTimeframe !== selectedTimeframe) {
+      setSelectedTimeframe(currentTimeframe);
+    }
+  }, [currentTimeframe]);
+
+  // Handle timeframe change
+  const handleTimeframeChange = (newTimeframe) => {
+    setSelectedTimeframe(newTimeframe);
+
+    // Reload the dashboard with the new timeframe
+    router.get(route('admin.dashboard'),
+      { timeframe: newTimeframe },
+      {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['stats', 'recentTransactions', 'recentUsers', 'recentOrders', 'recentTickets', 'revenueData', 'currentTimeframe']
+      }
+    );
+  };
 
   // If no user, show loading or error
   if (!user) {
@@ -44,7 +66,7 @@ export default function AdminLayout({ children, title }) {
             user={user}
             stats={stats}
             selectedTimeframe={selectedTimeframe}
-            onTimeframeChange={setSelectedTimeframe}
+            onTimeframeChange={handleTimeframeChange}
             toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             isCollapsed={sidebarCollapsed}
             toggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}

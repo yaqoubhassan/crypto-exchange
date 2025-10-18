@@ -171,17 +171,24 @@ export default function AdminHeader({ user, stats, selectedTimeframe, onTimefram
                     <div className="flex items-center space-x-2 sm:space-x-4">
                         {/* Timeframe Selector - Hidden on mobile */}
                         <div className="hidden md:block">
-                            <select
-                                value={selectedTimeframe}
-                                onChange={(e) => onTimeframeChange(e.target.value)}
-                                className="w-40 sm:w-44 px-3 sm:px-4 py-2 pr-10 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
-                            >
-                                <option value="1h">Last Hour</option>
-                                <option value="24h">Last 24 Hours</option>
-                                <option value="7d">Last 7 Days</option>
-                                <option value="30d">Last 30 Days</option>
-                                <option value="90d">Last 90 Days</option>
-                            </select>
+                            <div className="relative">
+                                <select
+                                    value={selectedTimeframe}
+                                    onChange={(e) => onTimeframeChange(e.target.value)}
+                                    className="w-40 sm:w-44 px-3 sm:px-4 py-2 pr-10 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors appearance-none bg-white cursor-pointer"
+                                >
+                                    <option value="1h">Last Hour</option>
+                                    <option value="24h">Last 24 Hours</option>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d">Last 30 Days</option>
+                                    <option value="90d">Last 90 Days</option>
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Notifications */}
