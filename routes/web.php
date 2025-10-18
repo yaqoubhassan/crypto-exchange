@@ -83,6 +83,11 @@ Route::middleware(['auth', 'user.only'])->group(function () {
     Route::post('/support', [App\Http\Controllers\SupportController::class, 'store'])->name('support.store');
     Route::get('/support/{id}', [App\Http\Controllers\SupportController::class, 'show'])->name('support.show');
     Route::post('/support/{id}/close', [App\Http\Controllers\SupportController::class, 'close'])->name('support.close');
+
+    // KYC Verification Routes
+    Route::get('/profile/kyc', [App\Http\Controllers\UserKycController::class, 'index'])->name('kyc.index');
+    Route::post('/profile/kyc', [App\Http\Controllers\UserKycController::class, 'store'])->name('kyc.store');
+    Route::post('/profile/kyc/resubmit', [App\Http\Controllers\UserKycController::class, 'resubmit'])->name('kyc.resubmit');
 });
 
 // Admin routes
@@ -121,8 +126,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/users/{user}/credit-wallet', [App\Http\Controllers\Admin\UserManagementController::class, 'creditWallet'])->name('users.credit-wallet');
     Route::get('/users/{user}/wallets', [App\Http\Controllers\Admin\UserManagementController::class, 'wallets'])->name('users.wallets');
 
-    // Transaction management - REFACTORED ✅
-    // CHANGED: Now uses TransactionManagementController instead of AdminController
     Route::get('/transactions', [App\Http\Controllers\Admin\TransactionManagementController::class, 'index'])->name('transactions');
     Route::get('/transactions/{id}', [App\Http\Controllers\Admin\TransactionManagementController::class, 'show'])->name('transactions.show');
     Route::post('/transactions/{id}/approve', [App\Http\Controllers\Admin\TransactionManagementController::class, 'approve'])->name('transactions.approve');
@@ -138,8 +141,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/notifications/{id}/click', [App\Http\Controllers\NotificationController::class, 'handleClick'])->name('notifications.click');
 
-    // KYC management - REFACTORED ✅
-    // CHANGED: Now uses KycManagementController instead of AdminController
     Route::get('/kyc', [App\Http\Controllers\Admin\KycManagementController::class, 'index'])->name('kyc');
     Route::post('/kyc/{id}/approve', [App\Http\Controllers\Admin\KycManagementController::class, 'approve'])->name('kyc.approve');
     Route::post('/kyc/{id}/reject', [App\Http\Controllers\Admin\KycManagementController::class, 'reject'])->name('kyc.reject');

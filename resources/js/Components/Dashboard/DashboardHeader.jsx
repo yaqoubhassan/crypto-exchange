@@ -368,6 +368,23 @@ export default function DashboardHeader({ user, toggleSidebar, isCollapsed, togg
                       🔒 Security
                     </Link>
                     <Link
+                      href="/profile/kyc"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <span>🔍</span>
+                      <span>KYC Verification</span>
+                      {user.kyc_status === 'pending' && (
+                        <span className="ml-auto px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                          Pending
+                        </span>
+                      )}
+                      {user.kyc_status === 'approved' && (
+                        <span className="ml-auto px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
+                          Verified
+                        </span>
+                      )}
+                    </Link>
+                    <Link
                       href="/settings"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={() => setShowProfileMenu(false)}

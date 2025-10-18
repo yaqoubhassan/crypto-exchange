@@ -60,12 +60,17 @@ class KycManagementController extends Controller
         $kyc = \App\Models\UserKyc::findOrFail($id);
 
         if ($kyc->verification_status !== 'pending') {
-            return response()->json(['error' => 'KYC is not pending'], 400);
+            return back()->with('error', 'KYC is not pending');
         }
 
         $kyc->verification_status = 'approved';
         $kyc->verified_at = now();
         $kyc->save();
+
+        // Update user's KYC status
+        $kyc->user->update([
+            'kyc_status' => 'verified'
+        ]);
 
         // Send real-time notification to user
         NotificationService::send(
@@ -81,10 +86,7 @@ class KycManagementController extends Controller
             ]
         );
 
-        return response()->json([
-            'message' => 'KYC approved successfully',
-            'kyc' => $kyc
-        ]);
+        return back()->with('success', 'KYC approved successfully');
     }
 
     /**
@@ -99,12 +101,17 @@ class KycManagementController extends Controller
         $kyc = \App\Models\UserKyc::findOrFail($id);
 
         if ($kyc->verification_status !== 'pending') {
-            return response()->json(['error' => 'KYC is not pending'], 400);
+            return back()->with('error', 'KYC is not pending');
         }
 
         $kyc->verification_status = 'rejected';
         $kyc->rejection_reason = $request->reason;
         $kyc->save();
+
+        // Update user's KYC status
+        $kyc->user->update([
+            'kyc_status' => 'rejected'
+        ]);
 
         // Send real-time notification to user
         NotificationService::send(
@@ -120,10 +127,7 @@ class KycManagementController extends Controller
             ]
         );
 
-        return response()->json([
-            'message' => 'KYC rejected successfully',
-            'kyc' => $kyc
-        ]);
+        return back()->with('success', 'KYC rejected successfully');
     }
 
     /**
