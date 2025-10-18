@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'user.only' => \App\Http\Middleware\UserOnlyMiddleware::class,
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
     })
     ->withProviders([
