@@ -6,6 +6,8 @@ import AIChatbot from '@/Components/Support/AIChatbot';
 export default function ContactSupport({ auth, tickets }) {
   const [showForm, setShowForm] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+
   const { data, setData, post, processing, errors, reset } = useForm({
     subject: '',
     category: 'technical',
@@ -30,11 +32,59 @@ export default function ContactSupport({ auth, tickets }) {
     { value: 'urgent', label: 'Urgent', color: 'red', description: 'Critical issue' },
   ];
 
+  // Handle file selection and preview
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+
+    // Limit to 3 files
+    if (files.length > 3) {
+      alert('You can only upload up to 3 files');
+      return;
+    }
+
+    // Create file preview data
+    const fileData = files.map(file => ({
+      file: file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      preview: getFileIcon(file.type)
+    }));
+
+    setSelectedFiles(fileData);
+    setData('attachments', files);
+  };
+
+  // Get appropriate icon based on file type
+  const getFileIcon = (fileType) => {
+    if (fileType.includes('pdf')) return '📄';
+    if (fileType.includes('image')) return '🖼️';
+    if (fileType.includes('document') || fileType.includes('word')) return '📝';
+    return '📎';
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  // Remove a file from selection
+  const removeFile = (index) => {
+    const newFiles = selectedFiles.filter((_, i) => i !== index);
+    setSelectedFiles(newFiles);
+    setData('attachments', newFiles.map(f => f.file));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     post('/support', {
       onSuccess: () => {
         reset();
+        setSelectedFiles([]);
         setShowForm(false);
       }
     });
@@ -42,7 +92,6 @@ export default function ContactSupport({ auth, tickets }) {
 
   // Handle escalation from AI chat to support ticket
   const handleEscalateToTicket = (chatHistory) => {
-    // Pre-fill the ticket form with chat context
     const chatContext = chatHistory
       .filter(msg => msg.type === 'user')
       .map(msg => msg.text)
@@ -74,92 +123,88 @@ export default function ContactSupport({ auth, tickets }) {
   };
 
   return (
-    <DashboardLayout
-      user={auth.user}
-      header={
-        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-          Contact Support
-        </h2>
-      }
-    >
+    <DashboardLayout user={auth.user}>
       <Head title="Contact Support" />
 
-      <div className="py-12">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Support Center</h1>
-              <p className="text-gray-600 mt-1">Get help from our support team</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Support</h1>
+              <p className="mt-1 text-sm text-gray-600">Get help or submit a support ticket</p>
             </div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              {showForm ? 'Cancel' : 'New Ticket'}
-            </button>
+            <div className="mt-4 sm:mt-0 flex space-x-3">
+              <button
+                onClick={() => setShowAIChat(true)}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md font-medium text-sm"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                AI Chat
+              </button>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Ticket
+              </button>
+            </div>
           </div>
 
-          {/* Quick Help Cards */}
+          {/* Quick Stats */}
           {!showForm && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {/* AI Chat Card - Enhanced */}
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 shadow-sm border-2 border-indigo-200 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
-                <div className="relative">
-                  <div className="text-3xl mb-3">💬</div>
-                  <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                    AI Live Chat
-                    <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-                      Instant
-                    </span>
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">Get instant answers from our AI assistant</p>
-                  <button
-                    onClick={() => setShowAIChat(true)}
-                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium text-sm flex items-center justify-center shadow-md"
-                  >
-                    Start AI Chat
-                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600">Open Tickets</p>
+                    <p className="text-2xl font-bold text-blue-900 mt-1">
+                      {tickets.data?.filter(t => t.status === 'open').length || 0}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-200 rounded-lg">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                     </svg>
-                  </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Help Center Card */}
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <div className="text-3xl mb-3">📚</div>
-                <h3 className="font-semibold text-gray-900 mb-2">Help Center</h3>
-                <p className="text-sm text-gray-600 mb-4">Browse FAQs and guides</p>
-                <Link
-                  href="/help"
-                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center"
-                >
-                  Visit Help Center
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
+              <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-6 border border-yellow-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-600">In Progress</p>
+                    <p className="text-2xl font-bold text-yellow-900 mt-1">
+                      {tickets.data?.filter(t => t.status === 'in_progress').length || 0}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-yellow-200 rounded-lg">
+                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
-              {/* Email Support Card */}
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <div className="text-3xl mb-3">📧</div>
-                <h3 className="font-semibold text-gray-900 mb-2">Email Support</h3>
-                <p className="text-sm text-gray-600 mb-4">support@cryptoexchange.com</p>
-                <a
-                  href="mailto:support@cryptoexchange.com"
-                  className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center"
-                >
-                  Send Email
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </a>
+              <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">Resolved</p>
+                    <p className="text-2xl font-bold text-green-900 mt-1">
+                      {tickets.data?.filter(t => t.status === 'resolved').length || 0}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-green-200 rounded-lg">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -254,7 +299,7 @@ export default function ContactSupport({ auth, tickets }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Attachments (Optional)
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-400 transition-colors">
                     <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
@@ -266,7 +311,7 @@ export default function ContactSupport({ auth, tickets }) {
                           multiple
                           className="hidden"
                           accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                          onChange={(e) => setData('attachments', Array.from(e.target.files))}
+                          onChange={handleFileChange}
                         />
                       </label>
                       {' '}or drag and drop
@@ -274,13 +319,52 @@ export default function ContactSupport({ auth, tickets }) {
                     <p className="text-xs text-gray-500">PNG, JPG, PDF up to 5MB (max 3 files)</p>
                   </div>
                   {errors.attachments && <p className="mt-1 text-sm text-red-600">{errors.attachments}</p>}
+
+                  {/* File Preview */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm font-medium text-gray-700">Selected Files:</p>
+                      {selectedFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <span className="text-2xl">{file.preview}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(file.size)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="ml-3 p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remove file"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit Buttons */}
                 <div className="flex justify-end space-x-4 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowForm(false)}
+                    onClick={() => {
+                      setShowForm(false);
+                      setSelectedFiles([]);
+                      reset();
+                    }}
                     className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                   >
                     Cancel
@@ -339,7 +423,7 @@ export default function ContactSupport({ auth, tickets }) {
                         </div>
                       </div>
                       <Link
-                        href={`/support/tickets/${ticket.id}`}
+                        href={`/support/${ticket.id}`}
                         className="ml-4 px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium text-sm"
                       >
                         View Details
