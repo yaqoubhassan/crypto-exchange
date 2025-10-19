@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import AIChatbot from '@/Components/Support/AIChatbot';
 
 export default function ContactSupport({ auth, tickets }) {
   const [showForm, setShowForm] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
   const { data, setData, post, processing, errors, reset } = useForm({
     subject: '',
     category: 'technical',
@@ -36,6 +38,19 @@ export default function ContactSupport({ auth, tickets }) {
         setShowForm(false);
       }
     });
+  };
+
+  // Handle escalation from AI chat to support ticket
+  const handleEscalateToTicket = (chatHistory) => {
+    // Pre-fill the ticket form with chat context
+    const chatContext = chatHistory
+      .filter(msg => msg.type === 'user')
+      .map(msg => msg.text)
+      .join('\n');
+
+    setData('message', `Chat History:\n${chatContext}\n\n---\nAdditional Details:`);
+    setShowAIChat(false);
+    setShowForm(true);
   };
 
   const getStatusBadge = (status) => {
@@ -91,6 +106,31 @@ export default function ContactSupport({ auth, tickets }) {
           {/* Quick Help Cards */}
           {!showForm && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {/* AI Chat Card - Enhanced */}
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-6 shadow-sm border-2 border-indigo-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
+                <div className="relative">
+                  <div className="text-3xl mb-3">💬</div>
+                  <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                    AI Live Chat
+                    <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                      Instant
+                    </span>
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">Get instant answers from our AI assistant</p>
+                  <button
+                    onClick={() => setShowAIChat(true)}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium text-sm flex items-center justify-center shadow-md"
+                  >
+                    Start AI Chat
+                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Help Center Card */}
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
                 <div className="text-3xl mb-3">📚</div>
                 <h3 className="font-semibold text-gray-900 mb-2">Help Center</h3>
@@ -105,23 +145,14 @@ export default function ContactSupport({ auth, tickets }) {
                   </svg>
                 </Link>
               </div>
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <div className="text-3xl mb-3">💬</div>
-                <h3 className="font-semibold text-gray-900 mb-2">Live Chat</h3>
-                <p className="text-sm text-gray-600 mb-4">Chat with support team</p>
-                <button className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center">
-                  Start Chat
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+
+              {/* Email Support Card */}
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
                 <div className="text-3xl mb-3">📧</div>
                 <h3 className="font-semibold text-gray-900 mb-2">Email Support</h3>
-                <p className="text-sm text-gray-600 mb-4">support@tradex.com</p>
+                <p className="text-sm text-gray-600 mb-4">support@cryptoexchange.com</p>
                 <a
-                  href="mailto:support@tradex.com"
+                  href="mailto:support@cryptoexchange.com"
                   className="text-indigo-600 hover:text-indigo-700 font-medium text-sm flex items-center"
                 >
                   Send Email
@@ -170,8 +201,8 @@ export default function ContactSupport({ auth, tickets }) {
                           : 'border-gray-200 hover:border-gray-300'
                           }`}
                       >
-                        <div className="text-2xl mb-1">{category.icon}</div>
-                        <div className="font-medium text-sm text-gray-900">{category.label}</div>
+                        <div className="text-2xl mb-2">{category.icon}</div>
+                        <div className="font-medium text-gray-900">{category.label}</div>
                       </button>
                     ))}
                   </div>
@@ -190,18 +221,12 @@ export default function ContactSupport({ auth, tickets }) {
                         type="button"
                         onClick={() => setData('priority', priority.value)}
                         className={`p-4 rounded-lg border-2 transition-all ${data.priority === priority.value
-                          ? 'border-indigo-600 bg-indigo-50'
+                          ? `border-${priority.color}-600 bg-${priority.color}-50`
                           : 'border-gray-200 hover:border-gray-300'
                           }`}
                       >
-                        <div className={`font-semibold text-sm mb-1 ${priority.color === 'red' ? 'text-red-600' :
-                          priority.color === 'orange' ? 'text-orange-600' :
-                            priority.color === 'blue' ? 'text-blue-600' :
-                              'text-gray-600'
-                          }`}>
-                          {priority.label}
-                        </div>
-                        <div className="text-xs text-gray-600">{priority.description}</div>
+                        <div className="font-medium text-gray-900">{priority.label}</div>
+                        <div className="text-xs text-gray-600 mt-1">{priority.description}</div>
                       </button>
                     ))}
                   </div>
@@ -216,9 +241,9 @@ export default function ContactSupport({ auth, tickets }) {
                   <textarea
                     value={data.message}
                     onChange={(e) => setData('message', e.target.value)}
-                    rows={6}
+                    rows="6"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Please describe your issue in detail..."
+                    placeholder="Describe your issue in detail..."
                   />
                   {errors.message && <p className="mt-1 text-sm text-red-600">{errors.message}</p>}
                   <p className="mt-2 text-sm text-gray-500">Minimum 10 characters</p>
@@ -314,10 +339,10 @@ export default function ContactSupport({ auth, tickets }) {
                         </div>
                       </div>
                       <Link
-                        href={`/support/${ticket.id}`}
+                        href={`/support/tickets/${ticket.id}`}
                         className="ml-4 px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium text-sm"
                       >
-                        View
+                        View Details
                       </Link>
                     </div>
                   </div>
@@ -326,45 +351,32 @@ export default function ContactSupport({ auth, tickets }) {
             ) : (
               <div className="p-12 text-center">
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No tickets yet</h3>
-                <p className="text-gray-600 mb-6">Create your first support ticket to get help</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No support tickets yet</h3>
+                <p className="text-gray-600 mb-6">Try our AI chat for instant help, or create a ticket if you need assistance</p>
                 <button
-                  onClick={() => setShowForm(true)}
-                  className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  onClick={() => setShowAIChat(true)}
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all font-medium shadow-md"
                 >
-                  Create Ticket
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  Start AI Chat
                 </button>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {tickets.data && tickets.data.length > 0 && tickets.links && (
-              <div className="p-6 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {tickets.from} to {tickets.to} of {tickets.total} tickets
-                  </div>
-                  <div className="flex space-x-2">
-                    {tickets.links.map((link, index) => (
-                      <Link
-                        key={index}
-                        href={link.url || '#'}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium ${link.active
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                          } ${!link.url && 'opacity-50 cursor-not-allowed'}`}
-                        dangerouslySetInnerHTML={{ __html: link.label }}
-                      />
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* AI Chatbot Modal */}
+      {showAIChat && (
+        <AIChatbot
+          onClose={() => setShowAIChat(false)}
+          onEscalateToTicket={handleEscalateToTicket}
+        />
+      )}
     </DashboardLayout>
   );
 }
