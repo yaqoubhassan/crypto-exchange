@@ -80,9 +80,12 @@ export default function WalletBalance({ wallets }) {
                 >
                     Manage Wallet
                 </Link>
-                <button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-center py-2 px-4 rounded-md text-sm font-medium transition-colors">
+                <Link
+                    href="/wallet"
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-center py-2 px-4 rounded-md text-sm font-medium transition-colors"
+                >
                     Deposit
-                </button>
+                </Link>
             </div>
         </div>
     );
