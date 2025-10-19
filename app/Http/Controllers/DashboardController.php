@@ -10,22 +10,22 @@ class DashboardController extends Controller
     public function index()
     {
         $user = auth()->user();
-        
+
         // Get user's wallets with cryptocurrency details
         $wallets = $user->wallets()->with('cryptocurrency')->get();
-        
+
         // Calculate total portfolio value in USD
         $totalPortfolioValue = $wallets->sum(function ($wallet) {
             return $wallet->balance * $wallet->cryptocurrency->current_price;
         });
-        
+
         // Get recent transactions
         $recentTransactions = $user->transactions()
             ->with('cryptocurrency')
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-        
+
         // Get active orders
         $activeOrders = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
@@ -33,7 +33,7 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
-        
+
         // Get order history
         $orderHistory = $user->orders()
             ->with(['baseCurrency', 'quoteCurrency'])
@@ -41,7 +41,7 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
-        
+
         // Calculate statistics
         $stats = [
             'total_portfolio_value' => $totalPortfolioValue,
@@ -53,7 +53,7 @@ class DashboardController extends Controller
             'completed_orders' => $user->orders()->where('status', 'filled')->count(),
             'available_wallets' => $wallets->count(),
         ];
-        
+
         // Get portfolio distribution
         $portfolioDistribution = $wallets->map(function ($wallet) use ($totalPortfolioValue) {
             $value = $wallet->balance * $wallet->cryptocurrency->current_price;
@@ -61,20 +61,23 @@ class DashboardController extends Controller
                 'name' => $wallet->cryptocurrency->name,
                 'symbol' => $wallet->cryptocurrency->symbol,
                 'balance' => $wallet->balance,
+                'total_balance' => $wallet->balance,
                 'value' => $value,
                 'percentage' => $totalPortfolioValue > 0 ? ($value / $totalPortfolioValue) * 100 : 0,
+                'current_price' => $wallet->cryptocurrency->current_price,
+                'change_24h' => $wallet->cryptocurrency->change_24h,
             ];
         })->filter(function ($item) {
-            return $item['balance'] > 0;
-        })->values();
-        
+            return $item['total_balance'] > 0;
+        })->sortByDesc('value')->values();
+
         // Get top cryptocurrencies by market cap
         $topCryptos = \App\Models\Cryptocurrency::where('is_fiat', false)
             ->where('is_active', true)
             ->orderBy('market_cap', 'desc')
             ->limit(5)
             ->get();
-        
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'wallets' => $wallets,
@@ -83,6 +86,7 @@ class DashboardController extends Controller
             'orderHistory' => $orderHistory,
             'portfolioDistribution' => $portfolioDistribution,
             'topCryptos' => $topCryptos,
+            'wallets' => $wallets,
         ]);
     }
 }

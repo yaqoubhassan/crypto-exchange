@@ -1,24 +1,23 @@
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import { Head, Link } from '@inertiajs/react';
+import MarketOverview from '@/Components/Dashboard/MarketOverview';
 
 export default function Dashboard({
     stats,
-    wallets,
-    recentTransactions,
-    activeOrders,
-    orderHistory,
     portfolioDistribution,
-    topCryptos
+    recentTransactions,
+    topCryptos,
+    wallets
 }) {
-    const StatCard = ({ title, value, icon, color = 'indigo', change }) => (
-        <div className="bg-white rounded-lg shadow p-6">
+    const StatCard = ({ title, value, icon, color, change }) => (
+        <div className={`bg-white rounded-lg shadow p-6 border-l-4 border-${color}-500`}>
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-medium text-gray-600">{title}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
-                    {change && (
-                        <p className={`text-sm mt-2 ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+                    <p className="text-2xl font-bold text-gray-900">{value}</p>
+                    {change !== undefined && (
+                        <p className={`text-sm mt-1 ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
                         </p>
                     )}
@@ -67,6 +66,11 @@ export default function Dashboard({
                 />
             </div>
 
+            {/* Market Overview Section - NEW! */}
+            <div className="mb-8">
+                <MarketOverview wallets={wallets} />
+            </div>
+
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 {/* Portfolio Distribution */}
@@ -83,45 +87,49 @@ export default function Dashboard({
                         {portfolioDistribution.length > 0 ? (
                             <div className="space-y-4">
                                 {portfolioDistribution.map((item, index) => (
-                                    <div key={index} className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3 flex-1">
-                                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                                {item.symbol.substring(0, 2)}
+                                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-colors">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                    {item.symbol.substring(0, 2)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                                                    <p className="text-sm text-gray-500">{item.symbol}</p>
+                                                </div>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="font-medium text-gray-900">{item.name}</p>
-                                                        <p className="text-sm text-gray-500">{item.symbol}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="font-medium text-gray-900">${parseFloat(item.value || 0).toFixed(2)}</p>
-                                                        <p className="text-sm text-gray-500">{parseFloat(item.balance || 0).toFixed(8)}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="mt-2 bg-gray-200 rounded-full h-2">
-                                                    <div
-                                                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full"
-                                                        style={{ width: `${parseFloat(item.percentage || 0)}%` }}
-                                                    ></div>
-                                                </div>
+                                            <div className="text-right">
+                                                <p className="text-lg font-bold text-gray-900">${parseFloat(item.value || 0).toFixed(2)}</p>
+                                                <p className={`text-sm ${parseFloat(item.change_24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {parseFloat(item.change_24h || 0) >= 0 ? '+' : ''}{parseFloat(item.change_24h || 0).toFixed(2)}%
+                                                </p>
                                             </div>
                                         </div>
-                                        <span className="ml-4 text-sm font-medium text-gray-600">
-                                            {parseFloat(item.percentage || 0).toFixed(1)}%
-                                        </span>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-gray-600">Balance</span>
+                                                <span className="font-medium text-gray-900">{parseFloat(item.total_balance || 0).toFixed(8)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-gray-600">Percentage</span>
+                                                <span className="font-medium text-gray-900">{parseFloat(item.percentage || 0).toFixed(2)}%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div
+                                                    className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-2 rounded-full"
+                                                    style={{ width: `${parseFloat(item.percentage || 0)}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <div className="text-center py-12">
                                 <div className="text-6xl mb-4">📊</div>
-                                <p className="text-gray-500">No assets in your portfolio yet</p>
-                                <Link
-                                    href="/wallet"
-                                    className="mt-4 inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                                >
-                                    Add Funds
+                                <p className="text-gray-500 mb-4">No portfolio data yet</p>
+                                <Link href="/wallet" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                                    Add funds to get started
                                 </Link>
                             </div>
                         )}
@@ -198,33 +206,33 @@ export default function Dashboard({
                     </div>
                     <div className="p-6">
                         {recentTransactions.length > 0 ? (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {recentTransactions.map((transaction) => (
                                     <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                         <div className="flex items-center space-x-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'deposit' ? 'bg-green-100 text-green-600' :
-                                                transaction.type === 'withdrawal' ? 'bg-red-100 text-red-600' :
-                                                    transaction.type === 'buy' ? 'bg-blue-100 text-blue-600' :
-                                                        'bg-purple-100 text-purple-600'
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'deposit' ? 'bg-green-100' :
+                                                transaction.type === 'withdrawal' ? 'bg-red-100' : 'bg-blue-100'
                                                 }`}>
                                                 {transaction.type === 'deposit' ? '⬇️' :
-                                                    transaction.type === 'withdrawal' ? '⬆️' :
-                                                        transaction.type === 'buy' ? '🛒' : '💰'}
+                                                    transaction.type === 'withdrawal' ? '⬆️' : '💳'}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-900 capitalize">{transaction.type}</p>
-                                                <p className="text-sm text-gray-500">
-                                                    {transaction.cryptocurrency?.symbol || 'N/A'}
+                                                <p className="text-sm font-medium text-gray-900 capitalize">
+                                                    {transaction.type}
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                    {new Date(transaction.created_at).toLocaleDateString()}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-medium text-gray-900">
-                                                {parseFloat(transaction.amount || 0).toFixed(8)}
+                                            <p className={`text-sm font-semibold ${transaction.type === 'deposit' ? 'text-green-600' : 'text-gray-900'
+                                                }`}>
+                                                {transaction.type === 'deposit' ? '+' : '-'}
+                                                {parseFloat(transaction.amount).toFixed(4)} {transaction.cryptocurrency?.symbol}
                                             </p>
-                                            <p className={`text-xs capitalize ${transaction.status === 'completed' ? 'text-green-600' :
-                                                transaction.status === 'pending' ? 'text-yellow-600' :
-                                                    'text-red-600'
+                                            <p className={`text-xs ${transaction.status === 'completed' ? 'text-green-600' :
+                                                transaction.status === 'pending' ? 'text-yellow-600' : 'text-red-600'
                                                 }`}>
                                                 {transaction.status}
                                             </p>
@@ -233,83 +241,54 @@ export default function Dashboard({
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-8">
-                                <div className="text-4xl mb-2">💳</div>
-                                <p className="text-gray-500">No transactions yet</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Active Orders */}
-                <div className="bg-white rounded-lg shadow">
-                    <div className="p-6 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-gray-900">Active Orders</h2>
-                            <Link href="/orders" className="text-sm text-indigo-600 hover:text-indigo-700">
-                                View all
-                            </Link>
-                        </div>
-                    </div>
-                    <div className="p-6">
-                        {activeOrders.length > 0 ? (
-                            <div className="space-y-4">
-                                {activeOrders.map((order) => (
-                                    <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                        <div className="flex items-center space-x-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${order.side === 'buy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                                                }`}>
-                                                {order.side === 'buy' ? '📈' : '📉'}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-gray-900">
-                                                    {order.side === 'buy' ? 'Buy' : 'Sell'} {order.base_currency?.symbol}
-                                                </p>
-                                                <p className="text-sm text-gray-500 capitalize">
-                                                    {order.type} • {order.status}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-medium text-gray-900">
-                                                {parseFloat(order.quantity || 0).toFixed(8)}
-                                            </p>
-                                            <p className="text-sm text-gray-500">
-                                                ${order.price ? parseFloat(order.price).toFixed(2) : 'Market'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-8">
-                                <div className="text-4xl mb-2">📋</div>
-                                <p className="text-gray-500">No active orders</p>
-                                <Link
-                                    href="/trading"
-                                    className="mt-4 inline-block bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                                >
-                                    Start Trading
+                            <div className="text-center py-12">
+                                <div className="text-6xl mb-4">💳</div>
+                                <p className="text-gray-500 mb-4">No transactions yet</p>
+                                <Link href="/wallet" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                                    Start trading
                                 </Link>
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
 
-            {/* Market Overview Banner */}
-            <div className="mt-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h3 className="text-lg font-semibold mb-2">Ready to explore more?</h3>
-                        <p className="text-indigo-100">Check out our trading platform and discover new opportunities</p>
+                {/* Trading Activity */}
+                <div className="bg-white rounded-lg shadow">
+                    <div className="p-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-semibold text-gray-900">Trading Activity</h2>
+                            <Link href="/trading" className="text-sm text-indigo-600 hover:text-indigo-700">
+                                Start Trading
+                            </Link>
+                        </div>
                     </div>
-                    <Link
-                        href="/trading"
-                        className="bg-white text-indigo-600 px-6 py-3 rounded-lg font-medium hover:bg-indigo-50 transition-colors"
-                    >
-                        Explore Markets
-                    </Link>
+                    <div className="p-6">
+                        <div className="space-y-4">
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium text-gray-700">Active Orders</span>
+                                    <span className="text-2xl font-bold text-indigo-600">{stats.active_orders}</span>
+                                </div>
+                                <p className="text-xs text-gray-600">Currently active trading orders</p>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium text-gray-700">Completed Orders</span>
+                                    <span className="text-2xl font-bold text-green-600">{stats.completed_orders || 0}</span>
+                                </div>
+                                <p className="text-xs text-gray-600">Successfully executed trades</p>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium text-gray-700">Total Orders</span>
+                                    <span className="text-2xl font-bold text-purple-600">{stats.total_orders || 0}</span>
+                                </div>
+                                <p className="text-xs text-gray-600">All time trading activity</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </DashboardLayout>
