@@ -8,10 +8,19 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\SocialLoginController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
+
 Route::middleware('guest')->group(function () {
+    // Google OAuth routes
+    Route::get('auth/google', [SocialLoginController::class, 'redirectToGoogle'])
+        ->name('auth.google');
+
+    Route::get('auth/google/callback', [SocialLoginController::class, 'handleGoogleCallback'])
+        ->name('auth.google.callback');
+
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
