@@ -88,7 +88,7 @@ Docker provides a complete, pre-configured environment with all services ready t
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/crypto-exchange.git
+git clone https://github.com/yaqoubhassan/crypto-exchange.git
 cd crypto-exchange
 
 # Copy environment file
@@ -117,7 +117,7 @@ chmod +x docker-setup.sh
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/crypto-exchange.git
+git clone https://github.com/yaqoubhassan/crypto-exchange.git
 cd crypto-exchange
 
 # Install dependencies
@@ -809,10 +809,6 @@ For more troubleshooting, see [DOCUMENTATION.md](DOCUMENTATION.md#troubleshootin
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md).
-
 ### Quick Start for Contributors
 
 1. Fork the repository
@@ -859,17 +855,9 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ### Getting Help
 
 - 📚 **Documentation**: [DOCUMENTATION.md](DOCUMENTATION.md)
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/crypto-exchange/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/crypto-exchange/discussions)
-- 📧 **Email**: support@yourapp.com
-
-### Community
-
-- [Discord Server](https://discord.gg/your-server)
-- [Telegram Group](https://t.me/your-group)
-- [Twitter](https://twitter.com/your-handle)
-
----
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yaqoubhassan/crypto-exchange.git/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/yaqoubhassan/crypto-exchange.git/discussions)
+- 📧 **Email**: yaqoubdramani@gmail.com
 
 ## 📜 License
 
@@ -905,16 +893,6 @@ copies of the Software.
 - CoinGecko for free API tier
 - All open-source contributors
 
----
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a star! ⭐
-
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/crypto-exchange&type=Date)](https://star-history.com/#yourusername/crypto-exchange&Date)
-
----
-
 ## 📸 Screenshots
 
 ### User Dashboard
@@ -932,4 +910,4 @@ If you find this project useful, please consider giving it a star! ⭐
 
 **⭐ Star us on GitHub — it motivates us a lot!**
 
-[Report Bug](https://github.com/yourusername/crypto-exchange/issues) · [Request Feature](https://github.com/yourusername/crypto-exchange/issues) · [Documentation](DOCUMENTATION.md)
+[Report Bug](https://github.com/yaqoubhassan/crypto-exchange.git/issues) · [Request Feature](https://github.com/yaqoubhassan/crypto-exchange.git/issues) · [Documentation](DOCUMENTATION.md)

@@ -227,7 +227,7 @@ A comprehensive, production-ready cryptocurrency exchange platform built with La
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/crypto-exchange.git
+git clone https://github.com/yaqoubhassan/crypto-exchange.git
 cd crypto-exchange
 ```
 
@@ -369,7 +369,7 @@ docker-compose --version
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/crypto-exchange.git
+git clone https://github.com/yaqoubhassan/crypto-exchange.git
 cd crypto-exchange
 
 # Copy Docker environment file
@@ -1616,7 +1616,7 @@ docker-compose exec node npm run build
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/crypto-exchange.git
+git clone https://github.com/yaqoubhassan/crypto-exchange.git
 cd crypto-exchange
 
 # Install dependencies
@@ -2074,8 +2074,7 @@ SOFTWARE.
 
 - **Documentation**: Read this comprehensive guide
 - **GitHub Issues**: Report bugs and request features
-- **Community**: Join our Discord/Slack community
-- **Email**: support@yourapp.com
+- **Email**: yaqoubdramani@gmail.com
 
 ### Reporting Issues
 
