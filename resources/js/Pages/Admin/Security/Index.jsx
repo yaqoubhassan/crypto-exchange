@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import {
@@ -7,6 +7,7 @@ import {
   LogOut, X, Check, Copy
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
+import ConfirmationModal from '@/Components/Admin/ConfirmationModal';
 
 export default function AdminSecurityIndex({
   twoFactorEnabled,
@@ -27,8 +28,13 @@ export default function AdminSecurityIndex({
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // States for revoke confirmation modal
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState(null);
+  const [revoking, setRevoking] = useState(false);
+
   // Show 2FA modal automatically when QR code is available
-  React.useEffect(() => {
+  useEffect(() => {
     if (qrCode) {
       setShow2FASetup(true);
     }
@@ -100,10 +106,28 @@ export default function AdminSecurityIndex({
     });
   };
 
-  const handleRevokeSession = (sessionId) => {
-    if (confirm('Are you sure you want to revoke this session?')) {
-      router.post(route('admin.security.revoke-session', sessionId));
-    }
+  // — Revoke session handlers (use ConfirmationModal)
+  const handleRevokeClick = (sessionId) => {
+    setRevokingSessionId(sessionId);
+    setShowRevokeModal(true);
+  };
+
+  const handleConfirmRevoke = () => {
+    if (!revokingSessionId) return;
+    setRevoking(true);
+    router.post(route('admin.security.revoke-session', revokingSessionId), {}, {
+      onSuccess: () => {
+        // you may want to refresh or rely on server flash to update UI
+      },
+      onError: (errors) => {
+        console.error('Revoke session error:', errors);
+      },
+      onFinish: () => {
+        setRevoking(false);
+        setShowRevokeModal(false);
+        setRevokingSessionId(null);
+      },
+    });
   };
 
   const handleLogoutOtherSessions = (e) => {
@@ -117,6 +141,7 @@ export default function AdminSecurityIndex({
   };
 
   const formatTimestamp = (timestamp) => {
+    // original code expects timestamp in seconds
     const date = new Date(timestamp * 1000);
     return date.toLocaleString();
   };
@@ -339,7 +364,7 @@ export default function AdminSecurityIndex({
                   </div>
                   {!session.is_current && (
                     <button
-                      onClick={() => handleRevokeSession(session.id)}
+                      onClick={() => handleRevokeClick(session.id)}
                       className="text-red-600 hover:text-red-700 text-sm font-medium"
                     >
                       Revoke
@@ -742,6 +767,32 @@ export default function AdminSecurityIndex({
           </form>
         </div>
       </Modal>
+
+      {/* Confirmation modal for revoking a session */}
+      <ConfirmationModal
+        isOpen={showRevokeModal}
+        onClose={() => !revoking && setShowRevokeModal(false)}
+        onConfirm={handleConfirmRevoke}
+        title="Revoke Session"
+        message="Are you sure you want to revoke this session? This user will be logged out immediately."
+        confirmText="Revoke Session"
+        type="danger"
+        loading={revoking}
+      >
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-800 mb-1">
+                Warning: This action cannot be undone.
+              </p>
+              <p className="text-xs text-yellow-700">
+                Once revoked, the user session will be terminated instantly.
+              </p>
+            </div>
+          </div>
+        </div>
+      </ConfirmationModal>
     </AdminLayout>
   );
 }

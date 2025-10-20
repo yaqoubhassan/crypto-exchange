@@ -5,11 +5,14 @@ import { Camera, Trash2, User } from 'lucide-react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import DangerButton from '@/Components/DangerButton';
+import ConfirmationModal from '@/Components/Admin/ConfirmationModal';
 
 export default function UpdateProfilePictureForm({ user, className = '' }) {
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removingPicture, setRemovingPicture] = useState(false);
 
   const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
     profile_picture: null,
@@ -51,14 +54,22 @@ export default function UpdateProfilePictureForm({ user, className = '' }) {
   };
 
   const handleRemove = () => {
-    if (confirm('Are you sure you want to remove your profile picture?')) {
-      router.delete(route('profile.picture.remove'), {
-        onSuccess: () => {
-          setPreview(null);
-          setSelectedFile(null);
-        }
-      });
-    }
+    setShowRemoveModal(true);
+  };
+
+  const confirmRemove = () => {
+    setRemovingPicture(true);
+    router.delete(route('profile.picture.remove'), {
+      preserveScroll: true,
+      onSuccess: () => {
+        setPreview(null);
+        setSelectedFile(null);
+        setShowRemoveModal(false);
+      },
+      onFinish: () => {
+        setRemovingPicture(false);
+      }
+    });
   };
 
   const cancelUpload = () => {
@@ -178,6 +189,32 @@ export default function UpdateProfilePictureForm({ user, className = '' }) {
           </div>
         </div>
       </div>
+
+      {/* Remove Profile Picture Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showRemoveModal}
+        onClose={() => !removingPicture && setShowRemoveModal(false)}
+        onConfirm={confirmRemove}
+        title="Remove Profile Picture"
+        message="Are you sure you want to remove your profile picture? You can always upload a new one later."
+        confirmText="Remove Picture"
+        type="danger"
+        loading={removingPicture}
+      >
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🖼️</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-800 mb-1">
+                Your profile will display the default avatar
+              </p>
+              <p className="text-xs text-yellow-700">
+                This action will permanently delete your current profile picture from our servers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </ConfirmationModal>
     </section>
   );
 }

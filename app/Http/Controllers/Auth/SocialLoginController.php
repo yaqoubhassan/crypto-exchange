@@ -25,7 +25,6 @@ class SocialLoginController extends Controller
      */
     public function handleGoogleCallback()
     {
-        Log::debug("message---------");
         try {
             $googleUser = Socialite::driver('google')->user();
 
@@ -33,7 +32,6 @@ class SocialLoginController extends Controller
 
             if ($user) {
                 // Update Google ID and verify email if not already verified
-                Log::debug("User found: " . $user->email);
                 $user->update([
                     'google_id' => $googleUser->id,
                     'email_verified_at' => $user->email_verified_at ?? now(), // Verify if null

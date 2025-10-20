@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 
@@ -35,7 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__ . '/../app/Console/Commands',
     ])
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+        $exceptions->respond(function (Response|RedirectResponse $response, Throwable $exception, Request $request) {
             if ($response->getStatusCode() === 404 && $request->expectsJson() === false) {
                 return Inertia::render('Error404')
                     ->toResponse($request)

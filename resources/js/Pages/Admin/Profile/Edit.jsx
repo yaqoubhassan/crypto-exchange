@@ -2,6 +2,7 @@ import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
 import { User, Mail, Phone, MapPin, Camera, Trash2, Lock, Activity, Save, X, Shield, Monitor, Eye, EyeOff, AlertTriangle, ExternalLink } from 'lucide-react';
+import ConfirmationModal from '@/Components/Admin/ConfirmationModal';
 
 export default function Edit({ user, activities, activeSessions, twoFactorEnabled }) {
   const [activeTab, setActiveTab] = useState('profile');
@@ -76,6 +77,8 @@ export default function Edit({ user, activities, activeSessions, twoFactorEnable
 function ProfileTab({ user }) {
   const [previewImage, setPreviewImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removingPicture, setRemovingPicture] = useState(false);
 
   const { data, setData, patch, processing, errors, recentlySuccessful } = useForm({
     name: user.name || '',
@@ -115,9 +118,15 @@ function ProfileTab({ user }) {
   };
 
   const handleRemovePicture = () => {
-    if (confirm('Are you sure you want to remove your profile picture?')) {
-      router.delete(route('admin.profile.picture.remove'));
-    }
+    setRemovingPicture(true);
+    router.delete(route('admin.profile.picture.remove'), {
+      onSuccess: () => {
+        setShowRemoveModal(false);
+      },
+      onFinish: () => {
+        setRemovingPicture(false);
+      }
+    });
   };
 
   const handleSubmit = (e) => {
@@ -182,7 +191,7 @@ function ProfileTab({ user }) {
 
               {user.profile_picture && !selectedFile && (
                 <button
-                  onClick={handleRemovePicture}
+                  onClick={() => setShowRemoveModal(true)}
                   className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
                 >
                   <Trash2 className="w-4 h-4 inline mr-2" />
@@ -309,6 +318,18 @@ function ProfileTab({ user }) {
           </div>
         </div>
       </div>
+
+      {/* Remove Picture Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showRemoveModal}
+        onClose={() => !removingPicture && setShowRemoveModal(false)}
+        onConfirm={handleRemovePicture}
+        title="Remove Profile Picture"
+        message="Are you sure you want to remove your profile picture? Your account will display your initials instead."
+        confirmText="Remove Picture"
+        type="danger"
+        loading={removingPicture}
+      />
     </div>
   );
 }

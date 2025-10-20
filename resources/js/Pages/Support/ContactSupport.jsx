@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import AIChatbot from '@/Components/Support/AIChatbot';
+import Toast from '@/Components/Trading/Toast';
 
 export default function ContactSupport({ auth, tickets }) {
   const [showForm, setShowForm] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [toast, setToast] = useState(null);
 
   const { data, setData, post, processing, errors, reset } = useForm({
     subject: '',
@@ -38,7 +40,10 @@ export default function ContactSupport({ auth, tickets }) {
 
     // Limit to 3 files
     if (files.length > 3) {
-      alert('You can only upload up to 3 files');
+      setToast({
+        type: 'error',
+        message: 'You can only upload up to 3 files'
+      });
       return;
     }
 
@@ -86,6 +91,16 @@ export default function ContactSupport({ auth, tickets }) {
         reset();
         setSelectedFiles([]);
         setShowForm(false);
+        setToast({
+          type: 'success',
+          message: 'Support ticket submitted successfully!'
+        });
+      },
+      onError: () => {
+        setToast({
+          type: 'error',
+          message: 'Failed to submit ticket. Please try again.'
+        });
       }
     });
   };
@@ -459,6 +474,15 @@ export default function ContactSupport({ auth, tickets }) {
         <AIChatbot
           onClose={() => setShowAIChat(false)}
           onEscalateToTicket={handleEscalateToTicket}
+        />
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </DashboardLayout>

@@ -6,6 +6,7 @@ import OrderFilters from '@/Components/Admin/Orders/OrderFilters';
 import OrdersTable from '@/Components/Admin/Orders/OrdersTable';
 import OrderCard from '@/Components/Admin/Orders/OrderCard';
 import OrderDetailModal from '@/Components/Admin/Orders/OrderDetailModal';
+import ConfirmationModal from '@/Components/Admin/ConfirmationModal';
 import Toast from '@/Components/Trading/Toast';
 
 export default function Orders({ orders, filters = {}, stats = {}, selectedOrder = null }) {
@@ -16,6 +17,8 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [viewingOrder, setViewingOrder] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellingOrders, setCancellingOrders] = useState(false);
   const [toast, setToast] = useState(null);
 
   const { flash } = usePage().props;
@@ -95,6 +98,33 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
           message: errors.message || 'Failed to update order status',
           type: 'error'
         });
+      }
+    });
+  };
+
+  // Handle bulk cancel orders
+  const handleBulkCancel = () => {
+    setCancellingOrders(true);
+    router.post('/admin/orders/bulk-cancel', {
+      order_ids: selectedOrders
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setShowCancelModal(false);
+        setSelectedOrders([]);
+        setToast({
+          message: `Successfully cancelled ${selectedOrders.length} order(s)`,
+          type: 'success'
+        });
+      },
+      onError: (errors) => {
+        setToast({
+          message: errors.message || 'Failed to cancel selected orders',
+          type: 'error'
+        });
+      },
+      onFinish: () => {
+        setCancellingOrders(false);
       }
     });
   };
@@ -194,11 +224,7 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
               <button
-                onClick={() => {
-                  if (confirm('Cancel all selected orders?')) {
-                    // Implement bulk cancel
-                  }
-                }}
+                onClick={() => setShowCancelModal(true)}
                 className="flex-1 sm:flex-none px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
                 Cancel Selected
@@ -279,37 +305,6 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
         )}
       </div>
 
-      {/* Desktop Pagination */}
-      {/* <div className="hidden lg:block">
-        {orders.links && orders.links.length > 3 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
-            <div className="px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-700">
-                Showing <span className="font-medium">{orders.from || 0}</span> to{' '}
-                <span className="font-medium">{orders.to || 0}</span> of{' '}
-                <span className="font-medium">{orders.total || 0}</span> results
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {orders.links.map((link, index) => (
-                  <button
-                    key={index}
-                    onClick={() => link.url && router.get(link.url)}
-                    disabled={!link.url || link.active}
-                    className={`px-3 py-1 rounded-md text-sm transition-colors ${link.active
-                      ? 'bg-indigo-600 text-white'
-                      : link.url
-                        ? 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    dangerouslySetInnerHTML={{ __html: link.label }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div> */}
-
       {/* Order Detail Modal */}
       <OrderDetailModal
         order={viewingOrder}
@@ -317,6 +312,32 @@ export default function Orders({ orders, filters = {}, stats = {}, selectedOrder
         onStatusChange={handleStatusChange}
         onShowToast={showToast}
       />
+
+      {/* Bulk Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showCancelModal}
+        onClose={() => !cancellingOrders && setShowCancelModal(false)}
+        onConfirm={handleBulkCancel}
+        title="Cancel Selected Orders"
+        message={`Are you sure you want to cancel ${selectedOrders.length} selected order(s)? This action cannot be undone.`}
+        confirmText="Cancel Orders"
+        type="danger"
+        loading={cancellingOrders}
+      >
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-800 mb-1">
+                Warning: This will affect {selectedOrders.length} order(s)
+              </p>
+              <p className="text-xs text-yellow-700">
+                Cancelled orders cannot be restored. Users will be notified of the cancellation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </ConfirmationModal>
 
       {/* Toast Notification */}
       {toast && (

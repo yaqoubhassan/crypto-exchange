@@ -7,6 +7,7 @@ import {
     LogOut, X, Check, Copy, Download
 } from 'lucide-react';
 import Modal from '@/Components/Modal';
+import ConfirmationModal from '@/Components/Admin/ConfirmationModal';
 
 export default function SecurityIndex({
     twoFactorEnabled,
@@ -28,6 +29,9 @@ export default function SecurityIndex({
     const [showBackupCodes, setShowBackupCodes] = useState(false);
     const [copiedCode, setCopiedCode] = useState(false);
     const [copiedSecret, setCopiedSecret] = useState(false);
+    const [showRevokeModal, setShowRevokeModal] = useState(false);
+    const [sessionToRevoke, setSessionToRevoke] = useState(null);
+    const [revokingSession, setRevokingSession] = useState(false);
 
     // Show 2FA modal automatically when QR code is available
     React.useEffect(() => {
@@ -102,9 +106,20 @@ export default function SecurityIndex({
     };
 
     const handleRevokeSession = (sessionId) => {
-        if (confirm('Are you sure you want to revoke this session?')) {
-            router.post(route('security.revoke-session', sessionId));
-        }
+        setSessionToRevoke(sessionId);
+        setShowRevokeModal(true);
+    };
+
+    const confirmRevokeSession = () => {
+        setRevokingSession(true);
+        router.post(route('security.revoke-session', sessionToRevoke), {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setRevokingSession(false);
+                setShowRevokeModal(false);
+                setSessionToRevoke(null);
+            }
+        });
     };
 
     const handleLogoutOthers = (e) => {
@@ -700,6 +715,32 @@ export default function SecurityIndex({
                     </form>
                 </div>
             </Modal>
+
+            {/* Revoke Session Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showRevokeModal}
+                onClose={() => !revokingSession && setShowRevokeModal(false)}
+                onConfirm={confirmRevokeSession}
+                title="Revoke Session"
+                message="Are you sure you want to revoke this session? The device will be logged out immediately."
+                confirmText="Revoke Session"
+                type="danger"
+                loading={revokingSession}
+            >
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                        <span className="text-2xl">⚠️</span>
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-yellow-800 mb-1">
+                                This will immediately terminate the session
+                            </p>
+                            <p className="text-xs text-yellow-700">
+                                The user will need to log in again on that device to regain access.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </ConfirmationModal>
         </DashboardLayout>
     );
 }
